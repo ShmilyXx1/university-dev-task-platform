@@ -52,7 +52,9 @@
         ├── java/com/svtu/  # controller / service / mapper / entity / config / websocket ...
         └── resources/
             ├── application.properties
-            └── sql/pay_init.sql   # 支付模块建表脚本
+            └── sql/
+                ├── db_task_init.sql   # 完整建库脚本（表结构+演示数据）
+                └── pay_init.sql       # 支付模块增量升级脚本
 ```
 
 ## 快速开始
@@ -65,7 +67,15 @@
 
 ### 1. 数据库准备
 
-创建数据库 `db_task`（UTF-8 / utf8mb4）并初始化业务表结构；支付模块额外执行：
+脚本位于 `task/src/main/resources/sql/`：
+
+- **全新部署**：直接执行 `db_task_init.sql`，会自动创建 `db_task` 数据库、全部 7 张表，并写入角色、测试账号等演示数据：
+
+```bash
+mysql -uroot -p < task/src/main/resources/sql/db_task_init.sql
+```
+
+- 已有旧库、仅需升级支付功能时，才执行增量脚本 `pay_init.sql`（为 `t_order` 增加支付字段、创建 `t_payment` 表）：
 
 ```sql
 source task/src/main/resources/sql/pay_init.sql;
