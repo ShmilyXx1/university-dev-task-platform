@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.svtu.mapper.OrderMapper">
+    <delete id="deleteOrder">
+        DELETE FROM t_order
+        WHERE order_id = #{orderId}
+          AND (sender_id = #{userId} OR #{userId} =4)
+    </delete>
+
+    <select id="selectOrder" resultType="com.svtu.VO.OrderVO">
+        SELECT o.order_id,
+               u_sender.username AS sender_name,
+               u_getter.username AS getter_name,
+               o.title,
+               o.content,
+               o.type,
+               o.deposit,
+               o.sender_price,
+               o.state,
+               o.user_complete,
+               o.auditor_complete,
+               o.release_datetime,
+               o.end_datetime,
+               o.complete_datetime
+        FROM t_order o
+                 LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+                 LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        WHERE o.state = '0'
+          AND (o.title LIKE CONCAT('%', #{searchNum}, '%') OR o.content LIKE CONCAT('%', #{searchNum}, '%') OR u_sender.username=#{searchNum} OR u_getter.username=#{searchNum} OR o.type=#{serachNum} OR o.order_id=#{searchNum})
+        ORDER BY o.release_datetime DESC
+    </select>
+
+    <select id="selectFilter" resultType="com.svtu.VO.OrderVO">
+        SELECT o.order_id,
+               u_sender.username AS sender_name,
+               u_getter.username AS getter_name,
+               o.title,
+               o.content,
+               o.type,
+               o.deposit,
+               o.sender_price,
+               o.state,
+               o.user_complete,
+               o.auditor_complete,
+               o.release_datetime,
+               o.end_datetime,
+               o.complete_datetime
+        FROM t_order o
+                 LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+                 LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        <where>
+              o.state = '0'
+            <if test="type!=null">
+                 and o.type=#{type}
+            </if>
+            <if test="minPrice!=null">
+                and o.sender_price &gt;=#{minPrice}
+            </if>
+            <if test="maxPrice!=null">
+                and o.sender_price &lt;=#{maxPrice}
+            </if>
+        </where>
+        <if test="sort!=null||sort!= ''">
+        ORDER BY o.sender_price ${sort}
+        </if>
+
+    </select>
+    <select id="selectAllOrder" resultType="com.svtu.VO.OrderVO">
+        SELECT o.order_id,
+               u_sender.username AS sender_name,
+               u_getter.username AS getter_name,
+               o.title,
+               o.content,
+               o.type,
+               o.deposit,
+               o.sender_price,
+               o.state,
+               o.user_complete,
+               o.auditor_complete,
+               o.release_datetime,
+               o.end_datetime,
+               o.complete_datetime
+        FROM t_order o
+                 LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+                 LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        WHERE o.state = '0'
+        ORDER BY o.release_datetime DESC
+    </select>
+    <select id="selectOneOrder" resultType="com.svtu.VO.OrderVO">
+        SELECT o.order_id,
+               u_sender.username AS sender_name,
+               u_getter.username AS getter_name,
+               o.title,
+               o.content,
+               o.type,
+               o.deposit,
+               o.sender_price,
+               o.state,
+               o.user_complete,
+               o.auditor_complete,
+               o.release_datetime,
+               o.end_datetime,
+               o.complete_datetime
+        FROM t_order o
+                 LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+                 LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        WHERE order_id=#{orderId}
+    </select>
+    <select id="selectSenderUserOrderByState" resultType="com.svtu.VO.OrderVO">
+        SELECT o.order_id,
+        u_sender.username AS sender_name,
+        u_getter.username AS getter_name,
+        o.title,
+        o.content,
+        o.type,
+        o.deposit,
+        o.sender_price,
+        o.state,
+        o.user_complete,
+        o.auditor_complete,
+        o.release_datetime,
+        o.end_datetime,
+        o.complete_datetime
+        FROM t_order o
+        LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+        LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        <where>
+            o.sender_id = #{userId}
+            <if test="state != null and state != '' and state != 'all'">
+                AND o.state = #{state}
+            </if>
+        </where>
+        ORDER BY o.release_datetime DESC
+    </select>
+    <select id="selectGetterUserOrderByState" resultType="com.svtu.VO.OrderVO">
+        SELECT o.order_id,
+        u_sender.username AS sender_name,
+        u_getter.username AS getter_name,
+        o.title,
+        o.content,
+        o.type,
+        o.deposit,
+        o.sender_price,
+        o.state,
+        o.user_complete,
+        o.auditor_complete,
+        o.release_datetime,
+        o.end_datetime,
+        o.complete_datetime
+        FROM t_order o
+        LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+        LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        <where>
+            getter_id=#{userId}
+            <if test="state != null and state != '' and state != 'all'">
+                and  o.state=#{state}
+            </if>
+        </where>
+        ORDER BY release_datetime desc
+    </select>
+    <update id="getterUpdateOrder">
+        update t_order set state='1',getter_Id=#{userId}  where order_id=#{orderId} and state='0'
+    </update>
+    <update id="senderUpdateOrder">
+        update t_order
+        <set>
+            update_datetime=now(),
+            <if test="order.title != null">title = #{order.title},</if>
+            <if test="order.content != null">content = #{order.content},</if>
+            <if test="order.type != null">type = #{order.type},</if>
+            <if test="order.senderPrice != null">sender_price = #{order.senderPrice},</if>
+        </set>
+        where order_id=#{order.orderId} and (sender_id=#{userId} OR #{userId}=4)
+    </update>
+
+    <update id="resultUpdateOrder">
+        update t_order set document_path=#{documentPath},user_complete='1' where order_id=#{orderId} and state='1'
+    </update>
+    <update id="CancelGetterUpdateOrder">
+        update t_order set state='0',getter_Id=null  where order_id=#{orderId} and state='1'
+    </update>
+</mapper>

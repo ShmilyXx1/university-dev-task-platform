@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.svtu.mapper.FeedbackMapper">
+    <update id="updateUserFeedbackByContent">
+        update t_feedback set content=#{content} where feedback_id=#{feedbackId}
+    </update>
+    <update id="updateUserFeedbackBySolve">
+        update t_feedback
+        <set>
+            solve=#{solve},
+            <if test="solve==1">
+                solve_datetime=now()
+            </if>
+        </set>
+        where feedback_id=#{feedbackId}
+    </update>
+    <update id="serviceReply">
+        update t_feedback set reply=#{reply}, reply_datetime=now() where feedback_id=#{feedbackId}
+    </update>
+
+    <select id="selectAllByUserIdSolveFeedback" resultType="com.svtu.VO.FeedbackVO">
+        select * from t_feedback <where>user_id=#{userId}
+        <if test="solve!=null">
+           and solve=#{solve}
+        </if></where>
+        ORDER BY send_datetime desc
+    </select>
+    <select id="selectAllFeedback" resultType="com.svtu.entity.Feedback">
+        select a.feedback_id, a.user_id, a.content, a.solve, a.send_datetime, a.solve_datetime,
+               a.reply, a.reply_datetime,
+               b.username
+        from t_Feedback a
+        left join t_user b on a.user_id = b.user_id
+        <where>
+            <if test="type!=null and type!=''">
+                a.solve=#{type}
+            </if>
+        </where>
+        ORDER BY a.send_datetime desc
+    </select>
+</mapper>

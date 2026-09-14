@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.svtu.mapper.AuditorMapper">
+    <select id="selectAllUserCompleteOrder" resultType="com.svtu.entity.Order">
+        SELECT o.order_id,
+               u_sender.username AS sender_name,
+               u_getter.username AS getter_name,
+               o.title,
+               o.content,
+               o.type,
+               o.sender_price,
+               o.getter_price,
+               o.state,
+               o.document_path,
+               o.user_complete,
+               o.auditor_complete,
+               o.release_datetime,
+               o.end_datetime,
+               o.complete_datetime
+        FROM t_order o
+                 LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+                 LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        WHERE o.user_complete='1'
+        ORDER BY o.release_datetime DESC
+    </select>
+    <select id="selectUserCompleteOneOrder" resultType="com.svtu.entity.Order">
+        SELECT o.order_id,
+               u_sender.username AS sender_name,
+               u_getter.username AS getter_name,
+               o.title,
+               o.content,
+               o.type,
+               o.sender_price,
+               o.getter_price,
+               o.state,
+               o.document_path,
+               o.user_complete,
+               o.auditor_complete,
+               o.release_datetime,
+               o.end_datetime,
+               o.complete_datetime
+        FROM t_order o
+                 LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+                 LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        WHERE order_id=#{orderId}
+    </select>
+
+    <update id="auditorUpdateOrder">
+        update t_order
+        <set>
+            auditor_complete=#{auditorComplete},
+            <if test='auditorComplete == "1"'>
+                state='2',complete_datetime=now()
+            </if>
+        </set>
+        where order_id=#{orderId} and state='1' and user_complete='1'
+    </update>
+</mapper>
