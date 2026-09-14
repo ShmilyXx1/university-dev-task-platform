@@ -63,6 +63,14 @@ public class LoginInterceptor extends OncePerRequestFilter {
             return;
         }
 
+        // 2.1 放行静态资源（头像等 <img> 标签请求无法携带 token 请求头）
+        if (path.startsWith("/avatar/") || path.startsWith("/images/")
+                || path.startsWith("/static/") || path.startsWith("/css/")
+                || path.startsWith("/js/")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         // 3. 验证 token
         String token = request.getHeader("token");
         if (token == null || token.trim().isEmpty()) {

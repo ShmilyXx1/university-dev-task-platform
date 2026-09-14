@@ -75,7 +75,7 @@ public class SecurityConfig {
                         ,"/user/registerGetCode","/user/registerCheckCode","/user/register"
                         ,"/user/updatePassword","/user/forgetPasswordGetCode","/user/forgetPasswordCheckCode","/ws/chat/**","/user/adminLogin").permitAll()
                 // 放行图片、静态资源
-                .antMatchers("/images/**", "/static/**", "/css/**", "/js/**").permitAll()
+                .antMatchers("/images/**", "/static/**", "/css/**", "/js/**", "/avatar/**").permitAll()
                 // 放行所有 OPTIONS 预检请求（解决跨域403）
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 //出上面外的所有请求都需要鉴权认证
