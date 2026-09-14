@@ -122,6 +122,13 @@
       <artifactId>spring-boot-starter-amqp</artifactId>
     </dependency>
 
+    <!-- 支付宝沙箱支付 SDK -->
+    <dependency>
+      <groupId>com.alipay.sdk</groupId>
+      <artifactId>alipay-sdk-java</artifactId>
+      <version>4.40.272.ALL</version>
+    </dependency>
+
     <!--springbootTest-->
     <dependency>
       <groupId>org.springframework.boot</groupId>

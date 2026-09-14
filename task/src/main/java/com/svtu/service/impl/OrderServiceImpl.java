@@ -8,6 +8,7 @@ import com.svtu.entity.Order;
 import com.svtu.exception.UserException;
 import com.svtu.mapper.OrderMapper;
 import com.svtu.service.OrderService;
+import com.svtu.service.PayService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ScopeMetadata;
 import org.springframework.stereotype.Service;
@@ -25,13 +26,28 @@ public class OrderServiceImpl implements OrderService {
     private OrderMapper orderMapper;
     @Autowired
     private Common common;
+    @Autowired
+    private PayService payService;
+
     /**
      * 查询所有未被接单的订单
      */
     @Override
     public Result<List<OrderVO>> selectAllOrder(){
         List<OrderVO> list = orderMapper.selectAllOrder();
-        if (list.isEmpty()||list==null) {
+        if (list==null||list.isEmpty()) {
+            list=new ArrayList<>();
+        }
+        return Result.success(list);
+    }
+
+    @Override
+    // 客服/管理员：查询全部订单（所有状态），空串归一化为 null
+    public Result<List<OrderVO>> selectAllOrderForService(String state, String keyword){
+        if ("".equals(state) || "all".equals(state)) state = null;
+        if (keyword != null && keyword.trim().isEmpty()) keyword = null;
+        List<OrderVO> list = orderMapper.selectAllOrderForService(state, keyword);
+        if (list==null||list.isEmpty()) {
             list=new ArrayList<>();
         }
         return Result.success(list);
@@ -90,6 +106,16 @@ public class OrderServiceImpl implements OrderService {
     public Result<Void> getterUpdateOrder(int orderId, int userId) {
         common.checkOrderId(orderId);
         common.checkUserId(userId);
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new UserException(501, "订单不存在");
+        }
+        if (!"1".equals(order.getPayState())) {
+            throw new UserException(501, "发单人尚未托管赏金，无法接单");
+        }
+        if (!"1".equals(order.getDepositState())) {
+            throw new UserException(501, "请先支付押金");
+        }
         int rows=orderMapper.getterUpdateOrder(orderId,userId);
         if(rows==1){
             return Result.success();
@@ -99,14 +125,22 @@ public class OrderServiceImpl implements OrderService {
 
     }
 
-    @Override//自己修改订单时,或管理管修改sql中会判断是否为管理员
+    @Override//发单人自行修改订单内容，只允许修改自己发布的订单
     public Result<Void> senderUpdateOrder(Order order,int userId) {
         if (order==null){
             throw new UserException(501,"修改订单内容是空的");
         }
+        common.checkOrderId(order.getOrderId());
+        Order exist = orderMapper.selectById(order.getOrderId());
+        if (exist == null) {
+            throw new UserException(501, "订单不存在");
+        }
+        if (exist.getSenderId() != userId) {
+            throw new UserException(501, "无权修改该订单，只能修改自己发布的订单");
+        }
         int rows=orderMapper.senderUpdateOrder(order,userId);
         if (rows<=0){
-            throw new UserException(501,"本人修改订单失败");
+            throw new UserException(501,"订单修改失败");
         }
         return Result.success();
     }
@@ -136,7 +170,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Result<Void> insertOrder(Order order,int userId) {
+    public Result<Integer> insertOrder(Order order,int userId) {
         if (order==null){
             throw new UserException(501,"新增订单是空的");
         }
@@ -149,15 +183,49 @@ public class OrderServiceImpl implements OrderService {
         if (rows<=0){
             throw new UserException(501,"订单添加失败");
         }
-        return Result.success();
+        return Result.success(order.getOrderId());
     }
     @Override
+    @Transactional
     public Result<Void> deleteOrder(int orderId,int userId) {
         common.checkOrderId(orderId);
         common.checkUserId(userId);
-        int rows=orderMapper.deleteOrder(orderId,userId);//只能删除自己发布的订单,或管理员来删除
-        if (rows<=0){
-            throw new UserException(501,"订单删除失败");
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new UserException(501, "订单不存在");
+        }
+        // 权限：发单人本人或拥有"管理员"角色的用户
+        boolean admin = common.isAdmin(userId);
+        if (order.getSenderId() != userId && !admin) {
+            throw new UserException(501, "无权取消该订单");
+        }
+
+        if (admin) {
+            // 管理员：物理删除（数据清理），删除前先退款
+            if ("1".equals(order.getPayState())) {
+                payService.refund(orderId, PayServiceImpl.TYPE_BOUNTY, "管理员删除订单，赏金退还");
+            }
+            if ("1".equals(order.getDepositState())) {
+                payService.refund(orderId, PayServiceImpl.TYPE_DEPOSIT, "管理员删除订单，押金退还");
+            }
+            int rows = orderMapper.deleteOrder(orderId, userId);
+            if (rows <= 0) {
+                throw new UserException(501, "订单删除失败");
+            }
+            return Result.success();
+        }
+
+        // 普通发单人：仅待被接取(state=0)可取消，标记为已取消(state=3)，记录保留
+        if (!"0".equals(order.getState())) {
+            throw new UserException(501, "订单已被接取或已结束，无法取消；如需终止请联系接单人取消接单");
+        }
+        if ("1".equals(order.getPayState())) {
+            // 赏金已托管 -> 原路退还给发单人
+            payService.refund(orderId, PayServiceImpl.TYPE_BOUNTY, "发单人取消订单，赏金退还");
+        }
+        int rows = orderMapper.cancelOrder(orderId, userId);
+        if (rows <= 0) {
+            throw new UserException(501, "订单取消失败");
         }
         return Result.success();
     }
@@ -207,9 +275,27 @@ public class OrderServiceImpl implements OrderService {
         if (rows<=0){
             return Result.error("用户取消订单失败");
         }
+        // 取消接单成功后：若押金已支付，原路退还给接单人，并重置押金状态
+        // （订单回到待接取池，下一位接单人需重新支付押金）
+        Order order = orderMapper.selectById(orderId);
+        if (order != null && "1".equals(order.getDepositState())) {
+            payService.refund(orderId, PayServiceImpl.TYPE_DEPOSIT, "接单人取消接单，押金原路退还");
+            order.setDepositState("0");
+            order.setDepositTradeNo(null);
+            orderMapper.updateById(order);
+        }
         return Result.success();
     }
 
-
+    @Override
+    public Result<Void> revokeCompleteOrder(int orderId, int userId) {
+        common.checkOrderId(orderId);
+        common.checkUserId(userId);
+        int rows = orderMapper.revokeCompleteOrder(orderId, userId);
+        if (rows <= 0) {
+            throw new UserException(501, "撤销失败：订单不是已完成状态，或您不是该订单的接单人");
+        }
+        return Result.success();
+    }
 
 }

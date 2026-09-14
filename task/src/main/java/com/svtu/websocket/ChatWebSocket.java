@@ -1,557 +1,593 @@
 package com.svtu.websocket;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import com.svtu.config.RabbitConfig;
 import com.svtu.entity.ChatMessage;
 import com.svtu.entity.User;
-import com.svtu.entity.UserLogin;
 import com.svtu.mapper.ChatMessageMapper;
 import com.svtu.mapper.UserMapper;
 import com.svtu.mapper.UserRoleMapper;
 import com.svtu.util.JwtUtil;
-import com.svtu.util.RedisUtil;
-import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
-import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * 统一聊天 WebSocket（客服聊天 + 用户 P2P 聊天 + 通知推）
- * 前端连接地址: ws://host/ws/chat/{token}
+ * 客服聊天 WebSocket 端点
+ *
+ * 排队机制：
+ *  - 用户申请排队 → 发送消息到 RabbitMQ 队列 user_wait_queue（持久化、FIFO）
+ *  - 客服上线 / 结束会话 / 用户入队时 → 主动从队列 receive 拉取一条进行匹配
+ *  - 拉取时校验用户仍在线且仍在等待（取消/离线的消息作废跳过）
+ *
+ * 注意：@ServerEndpoint 每连接 new 一个实例（WebSocket 容器管理），
+ * Spring 依赖必须通过静态字段 + setter 注入。
  */
 @Slf4j
 @Component
 @ServerEndpoint("/ws/chat/{token}")
 public class ChatWebSocket {
 
-    // ===== 依赖注入（通过 static setter 在 Spring 启动后注入） =====
+    // ===== Spring 依赖（静态注入，@ServerEndpoint 实例共享） =====
     private static JwtUtil jwtUtil;
-    private static RedisUtil redisUtil;
     private static UserMapper userMapper;
     private static UserRoleMapper userRoleMapper;
+    private static RabbitTemplate rabbitTemplate;
     private static ChatMessageMapper chatMessageMapper;
 
     @Autowired
     public void setJwtUtil(JwtUtil jwtUtil) { ChatWebSocket.jwtUtil = jwtUtil; }
     @Autowired
-    public void setRedisUtil(RedisUtil redisUtil) { ChatWebSocket.redisUtil = redisUtil; }
-    @Autowired
     public void setUserMapper(UserMapper userMapper) { ChatWebSocket.userMapper = userMapper; }
     @Autowired
     public void setUserRoleMapper(UserRoleMapper userRoleMapper) { ChatWebSocket.userRoleMapper = userRoleMapper; }
     @Autowired
+    public void setRabbitTemplate(RabbitTemplate rabbitTemplate) { ChatWebSocket.rabbitTemplate = rabbitTemplate; }
+    @Autowired
     public void setChatMessageMapper(ChatMessageMapper chatMessageMapper) { ChatWebSocket.chatMessageMapper = chatMessageMapper; }
 
-    // ===== 全局状态（static，所有 WebSocket 实例共享） =====
-    /** userId → Session（所有在线用户） */
-    public static final Map<Integer, Session> allSessionMap = new ConcurrentHashMap<>();
-    /** userId → 是否客服/管理员（可接单的角色） */
-    public static final Map<Integer, Boolean> userIsServiceMap = new ConcurrentHashMap<>();
-    /** 空闲客服 FIFO 队列 */
-    public static final Queue<Integer> freeServiceQueue = new LinkedList<>();
-    /** 排队用户（LinkedHashSet 保序） */
-    public static final Set<Integer> waitingUsers = Collections.synchronizedSet(new LinkedHashSet<>());
-    /** userId → serviceId（用户绑定的客服） */
-    public static final Map<Integer, Integer> userBindService = new ConcurrentHashMap<>();
-    /** serviceId → userId（客服绑定的用户） */
-    public static final Map<Integer, Integer> serviceBindUser = new ConcurrentHashMap<>();
-    /** 排队位置计数器（用于给用户展示"前方还有 N 人"） */
-    public static final AtomicInteger queueSeq = new AtomicInteger(0);
+    // ===== 全局状态 =====
+    /** 所有在线连接：userId -> Session */
+    private static final Map<Integer, Session> allSessionMap = new ConcurrentHashMap<>();
+    /** 在线客服 id 集合 */
+    private static final Set<Integer> onlineServices = ConcurrentHashMap.newKeySet();
+    /** 空闲客服队列（未在服务中的客服） */
+    private static final Queue<Integer> freeServiceQueue = new ConcurrentLinkedQueue<>();
+    /** 排队中的用户（保序，用于计算排队位置） */
+    private static final Set<Integer> waitingUsers = Collections.synchronizedSet(new LinkedHashSet<>());
+    /** 用户 -> 客服 绑定（1v1 会话） */
+    private static final Map<Integer, Integer> userBindService = new ConcurrentHashMap<>();
+    /** 客服 -> 用户 绑定 */
+    private static final Map<Integer, Integer> serviceBindUser = new ConcurrentHashMap<>();
 
-    // ===== 当前会话属性（每个实例独有） =====
-    private int myUserId = 0;
-    private boolean amService = false;
+    private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    // ==================== 连接建立 ====================
+    // ===== 当前连接实例的状态 =====
+    private Session session;
+    private int userId;
+    private String username;
+    private boolean isService;
+
+    /**
+     * 连接建立：token 放在 URL 路径上 /ws/chat/{token}
+     */
     @OnOpen
     public void onOpen(@PathParam("token") String token, Session session) {
+        String phone;
         try {
-            if (jwtUtil == null) {
-                log.warn("JwtUtil 未注入，WebSocket 连接被拒绝");
-                closeQuietly(session, 1011, "server not ready");
-                return;
-            }
-            // 1. 解析 token
-            Claims claims = jwtUtil.extractAllClaims(token);
-            Integer uid = (Integer) claims.get("userId");
-            if (uid == null) {
-                closeQuietly(session, 1008, "invalid token");
-                return;
-            }
-            // 2. 校验 Redis 登录态
-            UserLogin userLogin = (UserLogin) redisUtil.get("login:" + uid);
-            if (userLogin == null) {
-                closeQuietly(session, 1008, "not logged in");
-                return;
-            }
-            User user = userLogin.getUser();
-            this.myUserId = uid;
-            // 3. 判断是否客服（旧副本 UserLogin 无 roles 字段，直接从角色表查询角色名）
-            List<String> roles = userRoleMapper.selectUserRoleName(uid);
-            this.amService = roles != null && (roles.contains("客服") || roles.contains("管理员"));
-            // 4. 注册 session
-            allSessionMap.put(uid, session);
-            userIsServiceMap.put(uid, this.amService);
-            // 5. 客服上线 → 加入空闲队列
-            if (this.amService && !freeServiceQueue.contains(uid)) {
-                freeServiceQueue.offer(uid);
-            }
-            log.info("[WS] 用户 {} 连接成功, isService={}, online={}", uid, this.amService, allSessionMap.size());
-
-            // 6. 欢迎消息
-            JSONObject welcome = new JSONObject();
-            welcome.put("type", this.amService ? "service_online" : "user_online");
-            welcome.put("content", "ok");
-            sendMsg(session, welcome.toJSONString());
-
+            phone = jwtUtil.extractUsername(token);
         } catch (Exception e) {
-            log.error("[WS] onOpen 异常", e);
-            closeQuietly(session, 1011, "internal error");
+            log.warn("WebSocket 连接 token 无效");
+            closeQuietly(session);
+            return;
         }
+        User user = userMapper.selectUserId(phone);
+        if (user == null) {
+            log.warn("WebSocket 连接用户不存在：{}", phone);
+            closeQuietly(session);
+            return;
+        }
+
+        this.session = session;
+        this.userId = user.getUserId();
+        this.username = user.getUsername();
+
+        List<String> roles = userRoleMapper.selectUserRoleName(this.userId);
+        this.isService = roles != null && (roles.contains("客服") || roles.contains("管理员"));
+
+        allSessionMap.put(this.userId, session);
+
+        if (this.isService) {
+            onlineServices.add(this.userId);
+            // 客服上线：若不在会话中则加入空闲队列
+            if (!serviceBindUser.containsKey(this.userId) && !freeServiceQueue.contains(this.userId)) {
+                freeServiceQueue.offer(this.userId);
+            }
+            sendMsg(session, new MsgDTO("service_online", "客服已上线"));
+            // 断线重连：若会话还在，重发匹配成功通知
+            Integer uid = serviceBindUser.get(this.userId);
+            if (uid != null) {
+                notifyMatch(this.userId, uid, "user");
+            }
+            // 尝试接入排队用户
+            tryMatch();
+        } else {
+            // 用户重连 / 页面刷新：发状态恢复包
+            com.alibaba.fastjson.JSONObject state = new com.alibaba.fastjson.JSONObject();
+            String subState;
+            Integer pid = null;
+            if (userBindService.containsKey(this.userId)) {
+                subState = "chatting";
+                pid = userBindService.get(this.userId);
+            } else if (waitingUsers.contains(this.userId)) {
+                subState = "waiting";
+            } else {
+                subState = "idle";
+            }
+            state.put("state", subState);
+            state.put("peerId", pid);
+            state.put("peerName", pid != null ? (allSessionMap.containsKey(pid) ? "客服" : null) : null);
+            sendMsg(session, new MsgDTO("user_online", state.toJSONString()));
+            log.info("用户上线：userId={}, state={}, peerId={}", this.userId, subState, pid);
+            // 如果还在会话中，通知对方自己在线
+            if ("chatting".equals(subState)) {
+                notifyMatch(this.userId, pid, "service");
+            }
+        }
+        broadcastQueueCount();
+        log.info("WebSocket 连接成功：userId={}, isService={}", this.userId, this.isService);
     }
 
-    // ==================== 收到消息 ====================
+    /**
+     * 接收前端消息
+     */
     @OnMessage
-    public void onMessage(String message, Session session) {
-        if (myUserId == 0) return; // 未认证
+    public void onMessage(String message) {
+        log.info("收到消息：{}", message);
+        MsgDTO dto;
         try {
-            JSONObject dto = JSON.parseObject(message);
-            String type = dto.getString("type");
-            if (type == null) return;
-
-            switch (type) {
-                case "user_apply":        handleUserApply(session); break;
-                case "user_cancel":       handleUserCancel(); break;
-                case "service_pull":      handleServicePull(); break;
-                case "service_finish":    handleServiceFinish(); break;
-                case "user_state_query":  handleStateQuery(session); break;
-                case "chat":              handleServiceChat(dto); break;
-                case "user_chat":         handleP2PChat(dto); break;
-                case "typing":            handleTyping(dto); break;
-                default:
-                    log.warn("[WS] 未知消息类型: {}", type);
-            }
+            dto = JSON.parseObject(message, MsgDTO.class);
         } catch (Exception e) {
-            log.error("[WS] onMessage error", e);
+            return;
+        }
+        if (dto == null || dto.getType() == null) return;
+
+        switch (dto.getType()) {
+            case "user_state_query":
+                handleStateQuery();
+                break;
+            case "user_apply":
+                handleUserApply();
+                break;
+            case "user_cancel":
+                handleUserCancel();
+                break;
+            case "service_pull":
+                // 客服手动"接入下一位"：结束当前会话 → 重新进入空闲队列 → tryMatch 接下一位
+                if (isService) {
+                    handleServiceFinish(); // 释放当前会话，客服回到 freeServiceQueue
+                    tryMatch();           // 从 freeServiceQueue 里现在就有这个客服了，立刻接下一个排队用户
+                    broadcastQueueCount();
+                }
+                break;
+            case "service_finish":
+                handleServiceFinish();
+                break;
+            case "chat":
+                handleChat(dto.getContent());
+                break;
+            case "user_chat":
+                // P2P 用户间聊天（一对一，无客服绑定）
+                handleP2PChat(dto.getToUserId(), dto.getContent());
+                break;
+            default:
+                break;
         }
     }
 
-    // ==================== 连接关闭 ====================
+    /**
+     * 查询当前会话状态（前端页面重建 / 刷新时恢复状态用）
+     */
+    private void handleStateQuery() {
+        com.alibaba.fastjson.JSONObject state = new com.alibaba.fastjson.JSONObject();
+        String subState;
+        Integer pid = null;
+        if (isService) {
+            Integer uid = serviceBindUser.get(userId);
+            if (uid != null) {
+                subState = "chatting";
+                pid = uid;
+            } else {
+                subState = "idle";
+            }
+            state.put("state", subState);
+            state.put("peerId", pid);
+            state.put("queueCount", waitingUsers.size());
+        } else {
+            if (userBindService.containsKey(userId)) {
+                subState = "chatting";
+                pid = userBindService.get(userId);
+            } else if (waitingUsers.contains(userId)) {
+                subState = "waiting";
+            } else {
+                subState = "idle";
+            }
+            state.put("state", subState);
+            state.put("peerId", pid);
+        }
+        sendMsg(session, new MsgDTO("state_response", state.toJSONString()));
+        log.info("状态查询：userId={}, isService={}, resp={}", userId, isService, state);
+    }
+
+    /**
+     * 用户申请排队
+     */
+    private void handleUserApply() {
+        if (isService) return;
+        if (userBindService.containsKey(userId)) {
+            sendMsg(session, new MsgDTO("already_bound", "您已在客服会话中"));
+            return;
+        }
+        // 未排队才入队（重复点击不重复发 MQ）
+        if (!waitingUsers.contains(userId)) {
+            waitingUsers.add(userId);
+            try {
+                rabbitTemplate.convertAndSend(RabbitConfig.USER_EXCHANGE, "user.key", String.valueOf(userId));
+            } catch (Exception e) {
+                log.warn("MQ 发送失败，用户仍在内存等待队列：userId={}, err={}", userId, e.getMessage());
+            }
+        }
+        sendPosition(userId);
+        // 尝试匹配（即使 MQ 没消息，也会从 waitingUsers 内存集合兜底匹配）
+        tryMatch();
+        broadcastQueueCount();
+    }
+
+    /**
+     * 用户取消排队 / 结束会话
+     */
+    private void handleUserCancel() {
+        boolean removed = waitingUsers.remove(userId);
+        Integer sid = userBindService.remove(userId);
+        if (sid != null) {
+            serviceBindUser.remove(sid);
+            // 客服回归空闲，自动接入下一位
+            if (!freeServiceQueue.contains(sid)) freeServiceQueue.offer(sid);
+            sendMsg(allSessionMap.get(sid), new MsgDTO("user_leave", "用户已结束会话"));
+            tryMatch();
+        }
+        if (removed || sid != null) {
+            sendMsg(session, new MsgDTO("user_cancel_success", "已退出排队/会话"));
+        }
+        broadcastPosition();
+        broadcastQueueCount();
+    }
+
+    /**
+     * 客服结束会话
+     */
+    private void handleServiceFinish() {
+        if (!isService) return;
+        Integer uid = serviceBindUser.remove(userId);
+        if (uid != null) {
+            userBindService.remove(uid);
+            sendMsg(allSessionMap.get(uid), new MsgDTO("service_leave", "客服已结束会话，如有需要可重新排队"));
+        }
+        if (!freeServiceQueue.contains(userId)) freeServiceQueue.offer(userId);
+        sendMsg(session, new MsgDTO("service_idle", "会话已结束，您已回到空闲状态"));
+        tryMatch();
+        broadcastQueueCount();
+    }
+
+    /**
+     * 转发聊天消息并落库
+     */
+    private void handleChat(String content) {
+        if (content == null || content.trim().isEmpty()) return;
+        String time = SDF.format(new Date());
+        if (isService) {
+            Integer uid = serviceBindUser.get(userId);
+            if (uid == null) return;
+            saveMessage(userId, uid, content);
+            MsgDTO dto = new MsgDTO("chat", content.trim(), "service");
+            dto.setTime(time);
+            sendMsg(allSessionMap.get(uid), dto);
+        } else {
+            Integer sid = userBindService.get(userId);
+            if (sid == null) return;
+            saveMessage(userId, sid, content);
+            MsgDTO dto = new MsgDTO("chat", content.trim(), "user");
+            dto.setTime(time);
+            sendMsg(allSessionMap.get(sid), dto);
+        }
+    }
+
+    /**
+     * P2P 用户间聊天：一对一转发 + 落库 + 回推发送方
+     * 不依赖客服绑定表，直接通过 toUserId 在 allSessionMap 中查找对方 session
+     */
+    private void handleP2PChat(int toUserId, String content) {
+        if (content == null || content.trim().isEmpty()) return;
+        if (toUserId <= 0 || toUserId == this.userId) return;
+        String time = SDF.format(new Date());
+
+        // 1. 落库
+        saveMessage(this.userId, toUserId, content.trim());
+
+        // 2. 构造推送 DTO（推给双方的消息体一致，fromUserId/toUserId 固定）
+        MsgDTO dto = new MsgDTO("chat", content.trim());
+        dto.setPeerType("p2p");
+        dto.setFromUserId(this.userId);
+        dto.setToUserId(toUserId);
+        dto.setTime(time);
+
+        // 3. 推给接收方（如果对方在线）
+        Session receiver = allSessionMap.get(toUserId);
+        if (receiver != null && receiver.isOpen()) {
+            sendMsg(receiver, dto);
+        }
+
+        // 4. 回推发送方（乐观更新，让发送方立刻看到自己发的消息）
+        sendMsg(this.session, dto);
+    }
+
+    /**
+     * 匹配：空闲客服从 RabbitMQ 队列按 FIFO 拉取排队用户
+     *        兜底：MQ 队列为空时从 waitingUsers 内存集合匹配
+     */
+    private static synchronized void tryMatch() {
+        while (!freeServiceQueue.isEmpty()) {
+            // 1. 先尝试从 RabbitMQ 拉取
+            Object obj = null;
+            try {
+                obj = rabbitTemplate.receiveAndConvert(RabbitConfig.USER_QUEUE, 300);
+            } catch (Exception e) {
+                log.warn("MQ 拉取异常，回退内存匹配：{}", e.getMessage());
+            }
+
+            Integer uid = null;
+            if (obj != null) {
+                try { uid = Integer.parseInt(obj.toString().trim()); }
+                catch (NumberFormatException e) { /* 跳过 */ }
+            }
+
+            // 2. MQ 没消息 → 从 waitingUsers 内存集合找第一个有效排队用户
+            if (uid == null) {
+                for (Integer candidate : waitingUsers) {
+                    Session cs = allSessionMap.get(candidate);
+                    if (cs != null && cs.isOpen() && !userBindService.containsKey(candidate)) {
+                        uid = candidate;
+                        break;
+                    }
+                }
+                if (uid == null) return; // 真没人排队
+            }
+
+            Session uSession = allSessionMap.get(uid);
+            // 校验：用户仍在线、仍在等待、未绑定（取消排队/离线的消息作废）
+            if (uSession == null || !uSession.isOpen()
+                    || !waitingUsers.contains(uid)
+                    || userBindService.containsKey(uid)) {
+                waitingUsers.remove(uid);
+                continue;
+            }
+
+            Integer sid = freeServiceQueue.poll();
+            if (sid == null) return;
+            Session sSession = allSessionMap.get(sid);
+            if (sSession == null || !sSession.isOpen()) {
+                // 客服已离线：放回空闲队列，消息放回等待
+                freeServiceQueue.offer(sid);
+                continue;
+            }
+
+            // 绑定会话
+            waitingUsers.remove(uid);
+            userBindService.put(uid, sid);
+            serviceBindUser.put(sid, uid);
+
+            notifyMatch(uid, sid, "service");
+            notifyMatch(sid, uid, "user");
+            log.info("匹配成功：用户 {} ↔ 客服 {}", uid, sid);
+        }
+        broadcastPosition();
+        broadcastQueueCount();
+    }
+
+    /**
+     * 给一方发送"匹配成功"通知
+     * @param receiverId 接收者
+     * @param peerId     对方id
+     * @param peerRole   对方角色：service=对方是客服 / user=对方是用户
+     */
+    private static void notifyMatch(int receiverId, int peerId, String peerRole) {
+        User peer = userMapper.selectById(peerId);
+        MsgDTO dto = new MsgDTO("match_success", "match");
+        dto.setPeerId(peerId);
+        dto.setPeerName(peer != null ? peer.getUsername() : "");
+        dto.setFrom(peerRole);
+        sendMsg(allSessionMap.get(receiverId), dto);
+    }
+
+    /**
+     * 给指定用户发送排队位置
+     */
+    private static void sendPosition(int targetUserId) {
+        int pos = 0;
+        synchronized (waitingUsers) {
+            for (Integer id : waitingUsers) {
+                pos++;
+                if (id.equals(targetUserId)) break;
+            }
+        }
+        MsgDTO dto = new MsgDTO("user_waiting", "已进入排队，请等待客服接入");
+        dto.setPosition(pos);
+        sendMsg(allSessionMap.get(targetUserId), dto);
+    }
+
+    /**
+     * 广播排队位置给所有排队用户
+     */
+    private static void broadcastPosition() {
+        int pos = 0;
+        synchronized (waitingUsers) {
+            for (Integer id : waitingUsers) {
+                pos++;
+                MsgDTO dto = new MsgDTO("position", null);
+                dto.setPosition(pos);
+                sendMsg(allSessionMap.get(id), dto);
+            }
+        }
+    }
+
+    /**
+     * 广播排队人数给所有在线客服
+     */
+    private static void broadcastQueueCount() {
+        MsgDTO dto = new MsgDTO("queue_count", null);
+        dto.setPosition(waitingUsers.size());
+        for (Integer sid : onlineServices) {
+            sendMsg(allSessionMap.get(sid), dto);
+        }
+    }
+
+    /**
+     * 聊天消息落库
+     */
+    private static void saveMessage(int fromUserId, int toUserId, String content) {
+        try {
+            ChatMessage msg = new ChatMessage();
+            msg.setFromUserId(fromUserId);
+            msg.setToUserId(toUserId);
+            msg.setContent(content);
+            msg.setIsRead(0);  // 初始未读（接收方标已读后会 update）
+            msg.setSendDatetime(new Date());
+            chatMessageMapper.insert(msg);
+        } catch (Exception e) {
+            log.error("聊天消息落库失败", e);
+        }
+    }
+
+    /**
+     * 发送消息工具
+     */
+    private static void sendMsg(Session session, MsgDTO dto) {
+        try {
+            if (session != null && session.isOpen()) {
+                session.getBasicRemote().sendText(JSON.toJSONString(dto));
+            }
+        } catch (Exception e) {
+            log.error("WebSocket 发送消息失败", e);
+        }
+    }
+
+    private static void closeQuietly(Session session) {
+        try {
+            if (session != null && session.isOpen()) session.close();
+        } catch (Exception ignored) {
+        }
+    }
+
+    /**
+     * 连接关闭：清理状态，释放客服资源
+     */
     @OnClose
-    public void onClose(Session session) {
-        if (myUserId == 0) return;
-        log.info("[WS] 用户 {} 断开", myUserId);
-        cleanupOnDisconnect();
+    public void onClose() {
+        if (userId == 0) return;
+        allSessionMap.remove(userId);
+        log.info("WebSocket 断开：userId={}, isService={}", userId, isService);
+
+        if (isService) {
+            onlineServices.remove(userId);
+            freeServiceQueue.remove(userId);
+            Integer uid = serviceBindUser.remove(userId);
+            if (uid != null) {
+                userBindService.remove(uid);
+                sendMsg(allSessionMap.get(uid), new MsgDTO("service_leave", "客服已离线，请稍后重新排队"));
+            }
+        } else {
+            waitingUsers.remove(userId);
+            Integer sid = userBindService.remove(userId);
+            if (sid != null) {
+                serviceBindUser.remove(sid);
+                if (!freeServiceQueue.contains(sid)) freeServiceQueue.offer(sid);
+                sendMsg(allSessionMap.get(sid), new MsgDTO("user_leave", "用户已离开"));
+                // 客服空闲出来，自动接下一位排队用户
+                tryMatch();
+            }
+        }
+        broadcastPosition();
+        broadcastQueueCount();
     }
 
     @OnError
-    public void onError(Session session, Throwable throwable) {
-        log.warn("[WS] onError userId={}: {}", myUserId, throwable.getMessage());
+    public void onError(Throwable error) {
+        log.error("WebSocket 异常：userId={}", userId, error);
     }
 
-    // ==================== 具体处理逻辑 ====================
+    /**
+     * WebSocket 消息体
+     */
+    public static class MsgDTO {
+        private String type;       // 消息类型
+        private String content;    // 内容
+        private String from;       // user / service（客服会话语义；P2P 场景不依赖此字段）
+        private int userId;        // 兼容旧字段（客服会话发送方）
+        private int fromUserId;    // P2P 发送方 userId（通用）
+        private int toUserId;      // P2P 接收方 userId（通用）
+        private String peerType;   // service=客服会话 / p2p=用户间 P2P
+        private int peerId;        // 会话对方id
+        private String peerName;   // 会话对方昵称
+        private int position;      // 排队位置/人数
+        private String time;       // 消息时间
+        private String token;
+        private String cmd;
 
-    /** 用户申请排队 */
-    private void handleUserApply(Session session) {
-        if (amService) return; // 客服不能排队
-        // 如果已经在会话中，不允许再排队
-        if (userBindService.containsKey(myUserId)) return;
-
-        waitingUsers.add(myUserId);
-        // 计算位置
-        int position = 0;
-        int i = 0;
-        for (Integer uid : waitingUsers) {
-            i++;
-            if (uid.equals(myUserId)) { position = i; break; }
+        public MsgDTO() {}
+        public MsgDTO(String type, String content) {
+            this.type = type;
+            this.content = content;
+        }
+        public MsgDTO(String type, String content, String from) {
+            this.type = type;
+            this.content = content;
+            this.from = from;
         }
 
-        JSONObject resp = new JSONObject();
-        resp.put("type", "user_waiting");
-        resp.put("position", position);
-        resp.put("content", "已进入排队");
-        sendMsg(session, resp.toJSONString());
-
-        // 尝试立即匹配
-        tryMatch();
-
-        // 广播队列位置更新
-        broadcastQueueCount();
-    }
-
-    /** 用户取消排队/结束会话 */
-    private void handleUserCancel() {
-        waitingUsers.remove(myUserId);
-        if (userBindService.containsKey(myUserId)) {
-            int serviceId = userBindService.remove(myUserId);
-            serviceBindUser.remove(serviceId);
-            // 客服回归空闲
-            if (!freeServiceQueue.contains(serviceId)) freeServiceQueue.offer(serviceId);
-            // 通知客服
-            Session s = allSessionMap.get(serviceId);
-            if (s != null) {
-                JSONObject leave = new JSONObject();
-                leave.put("type", "user_leave");
-                leave.put("content", "用户已离开");
-                leave.put("fromUserId", myUserId);
-                sendMsg(s, leave.toJSONString());
-            }
-            // 客服可能有排队用户在等，立即匹配
-            tryMatch();
-        }
-        JSONObject resp = new JSONObject();
-        resp.put("type", "user_cancel_success");
-        sendMsg(allSessionMap.get(myUserId), resp.toJSONString());
-        broadcastQueueCount();
-    }
-
-    /** 客服手动接下一位 */
-    private void handleServicePull() {
-        if (!amService) return;
-        // 如果正在服务中，先结束当前会话
-        if (serviceBindUser.containsKey(myUserId)) {
-            handleServiceFinish();
-        }
-        tryMatch();
-    }
-
-    /** 客服结束当前会话 */
-    private void handleServiceFinish() {
-        if (!amService) return;
-        Integer userId = serviceBindUser.remove(myUserId);
-        if (userId != null) {
-            userBindService.remove(userId);
-            Session userSession = allSessionMap.get(userId);
-            if (userSession != null) {
-                JSONObject leave = new JSONObject();
-                leave.put("type", "user_leave");
-                leave.put("content", "客服已结束会话");
-                sendMsg(userSession, leave.toJSONString());
-            }
-        }
-        // 客服回归空闲队列
-        if (!freeServiceQueue.contains(myUserId)) freeServiceQueue.offer(myUserId);
-        // 通知客服进入空闲
-        Session ss = allSessionMap.get(myUserId);
-        if (ss != null) {
-            JSONObject idle = new JSONObject();
-            idle.put("type", "service_idle");
-            sendMsg(ss, idle.toJSONString());
-        }
-        // 立即尝试接下一位
-        tryMatch();
-    }
-
-    /** 状态查询（页面刷新恢复） */
-    private void handleStateQuery(Session session) {
-        JSONObject state = new JSONObject();
-        String myState;
-        int peerId = 0;
-        String peerName = "";
-
-        if (amService) {
-            if (serviceBindUser.containsKey(myUserId)) {
-                myState = "chatting";
-                peerId = serviceBindUser.get(myUserId);
-            } else {
-                myState = "idle";
-            }
-        } else {
-            if (userBindService.containsKey(myUserId)) {
-                myState = "chatting";
-                peerId = userBindService.get(myUserId);
-            } else if (waitingUsers.contains(myUserId)) {
-                myState = "waiting";
-            } else {
-                myState = "idle";
-            }
-        }
-
-        if (peerId > 0) {
-            User u = userMapper.selectById(peerId);
-            peerName = u != null ? u.getUsername() : "用户" + peerId;
-        }
-
-        state.put("state", myState);
-        state.put("peerId", peerId);
-        state.put("peerName", peerName);
-        state.put("queueCount", waitingUsers.size());
-
-        JSONObject resp = new JSONObject();
-        resp.put("type", "state_response");
-        resp.put("content", state.toJSONString());
-        resp.put("queueCount", waitingUsers.size());
-        sendMsg(session, resp.toJSONString());
-    }
-
-    /** 客服聊天中的消息转发 */
-    private void handleServiceChat(JSONObject dto) {
-        String content = dto.getString("content");
-        if (content == null || content.trim().isEmpty()) return;
-
-        int targetId;
-        String fromLabel;
-        if (amService) {
-            // 客服发给当前绑定的用户
-            Integer uid = serviceBindUser.get(myUserId);
-            if (uid == null) return;
-            targetId = uid;
-            fromLabel = "service";
-        } else {
-            // 用户发给绑定的客服
-            Integer sid = userBindService.get(myUserId);
-            if (sid == null) return;
-            targetId = sid;
-            fromLabel = "user";
-        }
-
-        // 持久化
-        saveMessage(myUserId, targetId, content, "chat");
-
-        // 转发给对方
-        Session targetSession = allSessionMap.get(targetId);
-        if (targetSession != null) {
-            JSONObject forward = new JSONObject();
-            forward.put("type", "chat");
-            forward.put("content", content);
-            forward.put("from", fromLabel);
-            forward.put("fromUserId", myUserId);
-            forward.put("time", nowStr());
-            sendMsg(targetSession, forward.toJSONString());
-        }
-        // 给自己也回一条（前端显示用）
-        Session self = allSessionMap.get(myUserId);
-        if (self != null) {
-            JSONObject echo = new JSONObject();
-            echo.put("type", "chat");
-            echo.put("content", content);
-            echo.put("from", fromLabel);
-            echo.put("fromUserId", myUserId);
-            echo.put("time", nowStr());
-            sendMsg(self, echo.toJSONString());
-        }
-    }
-
-    /** P2P 用户间直接聊天（不经过客服） */
-    private void handleP2PChat(JSONObject dto) {
-        Integer toUserId = dto.getInteger("toUserId");
-        String content = dto.getString("content");
-        if (toUserId == null || content == null || content.trim().isEmpty()) return;
-        if (toUserId.equals(myUserId)) return;
-
-        // 持久化
-        saveMessage(myUserId, toUserId, content, "chat");
-
-        // 构建消息包
-        JSONObject forward = new JSONObject();
-        forward.put("type", "chat");
-        forward.put("content", content);
-        forward.put("from", "other");
-        forward.put("fromUserId", myUserId);
-        forward.put("toUserId", toUserId);
-        forward.put("peerType", "p2p");
-        forward.put("time", nowStr());
-
-        // 推给对方（如果在线）
-        Session targetSession = allSessionMap.get(toUserId);
-        if (targetSession != null) {
-            sendMsg(targetSession, forward.toJSONString());
-        }
-
-        // 回显给自己
-        Session self = allSessionMap.get(myUserId);
-        if (self != null) {
-            JSONObject echo = new JSONObject();
-            echo.put("type", "chat");
-            echo.put("content", content);
-            echo.put("from", "me");
-            echo.put("fromUserId", myUserId);
-            echo.put("toUserId", toUserId);
-            echo.put("peerType", "p2p");
-            echo.put("time", nowStr());
-            sendMsg(self, echo.toJSONString());
-        }
-
-        // 通知双方更新未读数
-        pushUnreadNotify(toUserId);
-    }
-
-    private void handleTyping(JSONObject dto) {
-        // 可扩展：输入中状态
-    }
-
-    // ==================== 工具方法 ====================
-
-    /** 尝试匹配：空闲客服 ↔ 排队用户 */
-    private void tryMatch() {
-        while (!freeServiceQueue.isEmpty() && !waitingUsers.isEmpty()) {
-            int serviceId = freeServiceQueue.poll();
-            // 找到队列中第一个仍在线的用户
-            Integer userId = null;
-            for (Integer uid : waitingUsers) {
-                if (allSessionMap.containsKey(uid)) {
-                    userId = uid;
-                    break;
-                }
-            }
-            if (userId == null) {
-                // 全部离线，清空队列
-                waitingUsers.clear();
-                break;
-            }
-            waitingUsers.remove(userId);
-
-            // 绑定
-            userBindService.put(userId, serviceId);
-            serviceBindUser.put(serviceId, userId);
-
-            User su = userMapper.selectById(serviceId);
-            User uu = userMapper.selectById(userId);
-            String sName = su != null ? su.getUsername() : "客服";
-            String uName = uu != null ? uu.getUsername() : "用户";
-
-            // 通知用户
-            Session userSess = allSessionMap.get(userId);
-            if (userSess != null) {
-                JSONObject m = new JSONObject();
-                m.put("type", "match_success");
-                m.put("peerId", serviceId);
-                m.put("peerName", sName);
-                m.put("from", "service");
-                sendMsg(userSess, m.toJSONString());
-            }
-            // 通知客服
-            Session svcSess = allSessionMap.get(serviceId);
-            if (svcSess != null) {
-                JSONObject m = new JSONObject();
-                m.put("type", "match_success");
-                m.put("peerId", userId);
-                m.put("peerName", uName);
-                m.put("from", "user");
-                sendMsg(svcSess, m.toJSONString());
-            }
-        }
-    }
-
-    /** 广播队列人数 */
-    private void broadcastQueueCount() {
-        // 可省略，state_query 会返回最新值
-    }
-
-    /** 推送未读数通知给指定用户 */
-    public static void pushUnreadNotify(int userId) {
-        Session s = allSessionMap.get(userId);
-        if (s == null) return;
-        try {
-            // 查未读总数
-            List<Object[]> groups = chatMessageMapper.selectUnreadCountByFrom(userId);
-            int total = 0;
-            for (Object[] g : groups) total += ((Number) g[1]).intValue();
-
-            JSONObject notify = new JSONObject();
-            notify.put("type", "notify_unread");
-            notify.put("totalUnread", total);
-            notify.put("content", "您有新的消息");
-            sendMsgStatic(s, notify.toJSONString());
-        } catch (Exception e) {
-            log.warn("pushUnreadNotify error: {}", e.getMessage());
-        }
-    }
-
-    /** 保存消息到数据库 */
-    private void saveMessage(int from, int to, String content, String msgType) {
-        try {
-            ChatMessage m = new ChatMessage();
-            m.setFromUserId(from);
-            m.setToUserId(to);
-            m.setContent(content);
-            m.setMsgType(msgType);
-            m.setIsRead(0);
-            m.setSendDatetime(new Date());
-            chatMessageMapper.insert(m);
-        } catch (Exception e) {
-            log.warn("saveMessage error: {}", e.getMessage());
-        }
-    }
-
-    /** 断开时清理 */
-    private void cleanupOnDisconnect() {
-        allSessionMap.remove(myUserId);
-        waitingUsers.remove(myUserId);
-        // 如果是客服且正在服务，处理用户
-        if (amService && serviceBindUser.containsKey(myUserId)) {
-            Integer userId = serviceBindUser.remove(myUserId);
-            if (userId != null) {
-                userBindService.remove(userId);
-                Session userSess = allSessionMap.get(userId);
-                if (userSess != null) {
-                    JSONObject leave = new JSONObject();
-                    leave.put("type", "user_leave");
-                    leave.put("content", "客服已下线");
-                    sendMsgStatic(userSess, leave.toJSONString());
-                }
-            }
-        }
-        // 如果是用户且正在服务
-        if (!amService && userBindService.containsKey(myUserId)) {
-            Integer sid = userBindService.remove(myUserId);
-            serviceBindUser.remove(sid);
-            if (!freeServiceQueue.contains(sid)) freeServiceQueue.offer(sid);
-            Session svc = allSessionMap.get(sid);
-            if (svc != null) {
-                JSONObject leave = new JSONObject();
-                leave.put("type", "user_leave");
-                leave.put("content", "用户已下线");
-                sendMsgStatic(svc, leave.toJSONString());
-            }
-            tryMatch();
-        }
-        freeServiceQueue.remove(myUserId);
-        log.info("[WS] 清理完成 userId={}, 在线={}, 客服空闲={}, 排队={}",
-                myUserId, allSessionMap.size(), freeServiceQueue.size(), waitingUsers.size());
-    }
-
-    /** 向 session 发送消息 */
-    private void sendMsg(Session session, String json) {
-        if (session == null) return;
-        try {
-            if (session.isOpen()) {
-                session.getBasicRemote().sendText(json);
-            }
-        } catch (IOException e) {
-            log.warn("sendMsg fail: {}", e.getMessage());
-        }
-    }
-
-    /** static 版本（给 pushUnreadNotify 用） */
-    private static void sendMsgStatic(Session session, String json) {
-        if (session == null) return;
-        try {
-            if (session.isOpen()) {
-                session.getBasicRemote().sendText(json);
-            }
-        } catch (IOException e) {
-            log.warn("sendMsgStatic fail: {}", e.getMessage());
-        }
-    }
-
-    private void closeQuietly(Session session, int code, String reason) {
-        try { session.close(new CloseReason(CloseReason.CloseCodes.getCloseCode(code), reason)); } catch (Exception ignored) {}
-    }
-
-    private static String nowStr() {
-        Calendar c = Calendar.getInstance();
-        return String.format("%04d-%02d-%02d %02d:%02d",
-                c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH),
-                c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE));
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+        public String getFrom() { return from; }
+        public void setFrom(String from) { this.from = from; }
+        public int getUserId() { return userId; }
+        public void setUserId(int userId) { this.userId = userId; }
+        public int getFromUserId() { return fromUserId; }
+        public void setFromUserId(int fromUserId) { this.fromUserId = fromUserId; }
+        public int getToUserId() { return toUserId; }
+        public void setToUserId(int toUserId) { this.toUserId = toUserId; }
+        public String getPeerType() { return peerType; }
+        public void setPeerType(String peerType) { this.peerType = peerType; }
+        public int getPeerId() { return peerId; }
+        public void setPeerId(int peerId) { this.peerId = peerId; }
+        public String getPeerName() { return peerName; }
+        public void setPeerName(String peerName) { this.peerName = peerName; }
+        public int getPosition() { return position; }
+        public void setPosition(int position) { this.position = position; }
+        public String getTime() { return time; }
+        public void setTime(String time) { this.time = time; }
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
+        public String getCmd() { return cmd; }
+        public void setCmd(String cmd) { this.cmd = cmd; }
     }
 }

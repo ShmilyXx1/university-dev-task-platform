@@ -9,6 +9,7 @@ import com.svtu.exception.AdminException;
 import com.svtu.mapper.*;
 import com.svtu.service.AdminUserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private UserRegisterMapper userRegisterMapper;
     @Autowired
     private Common common;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public Result<List<User>> AllUser() {
@@ -38,6 +41,13 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public Result<User> AddUser(User user) {
+        // 手机号查重，避免重复注册
+        User exist = userRegisterMapper.selectByPhoneUser(user.getPhone());
+        if (exist != null) {
+            throw new AdminException(502, "该手机号已被注册");
+        }
+        // 密码 BCrypt 加密后入库（与注册流程一致，否则无法通过 Spring Security 登录校验）
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         int rows = adminUserMapper.insert(user);
         if (rows<=0){
             throw new AdminException(502,"添加用户失败");

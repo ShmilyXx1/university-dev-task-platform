@@ -1,11 +1,9 @@
 package com.svtu.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.svtu.entity.Menu;
 import com.svtu.entity.User;
 import com.svtu.entity.UserLogin;
 import com.svtu.exception.UserException;
-import com.svtu.mapper.AdminMenuMapper;
 import com.svtu.mapper.UserLoginMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;

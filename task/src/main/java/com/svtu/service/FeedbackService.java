@@ -2,7 +2,6 @@ package com.svtu.service;
 
 import com.svtu.VO.FeedbackVO;
 import com.svtu.common.Result;
-import com.svtu.entity.Feedback;
 
 import java.util.List;
 
@@ -13,6 +12,6 @@ public interface FeedbackService {
     Result<Void> updateUserFeedbackToContent(String content,int feedbackId);
     Result<Void> updateUserFeedbackToSolve(String solve,int feedbackId);
     Result<Void> deleteFeedback(int feedbackId);
+    Result<List<FeedbackVO>> selectAllFeedback(String type);
     Result<Void> serviceReply(int feedbackId, String reply);
-    Result<List<Feedback>> selectAllFeedback(String type);
 }

@@ -8,29 +8,44 @@
         update t_feedback
         <set>
             solve=#{solve},
-            <if test="solve==1">
-                solve_datetime=now()
+            <if test="solve=='1'">
+                solve_datetime=now(),
+            </if>
+            <if test="solve=='0'">
+                solve_datetime=null,
             </if>
         </set>
         where feedback_id=#{feedbackId}
     </update>
+
+    <!-- 客服回复：写入回复内容和回复时间；用户重新追问（solve=0）后客服可再次回复 -->
     <update id="serviceReply">
         update t_feedback set reply=#{reply}, reply_datetime=now() where feedback_id=#{feedbackId}
     </update>
 
     <select id="selectAllByUserIdSolveFeedback" resultType="com.svtu.VO.FeedbackVO">
-        select * from t_feedback <where>user_id=#{userId}
+        select feedback_id, user_id, content, reply, solve,
+               send_datetime, reply_datetime, solve_datetime
+        from t_feedback <where>user_id=#{userId}
         <if test="solve!=null">
            and solve=#{solve}
         </if></where>
         ORDER BY send_datetime desc
     </select>
-    <select id="selectAllFeedback" resultType="com.svtu.entity.Feedback">
-        select a.feedback_id, a.user_id, a.content, a.solve, a.send_datetime, a.solve_datetime,
-               a.reply, a.reply_datetime,
-               b.username
-        from t_Feedback a
-        left join t_user b on a.user_id = b.user_id
+
+    <!-- 客服端/管理端：查询全部反馈，关联用户名 -->
+    <select id="selectAllFeedback" resultType="com.svtu.VO.FeedbackVO">
+        select a.feedback_id,
+               a.user_id,
+               b.username,
+               a.content,
+               a.reply,
+               a.solve,
+               a.send_datetime,
+               a.reply_datetime,
+               a.solve_datetime
+        from t_feedback a
+        left join t_user b on a.user_id=b.user_id
         <where>
             <if test="type!=null and type!=''">
                 a.solve=#{type}

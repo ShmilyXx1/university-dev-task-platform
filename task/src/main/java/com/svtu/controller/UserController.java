@@ -6,7 +6,6 @@ import com.svtu.entity.Common;
 import com.svtu.entity.User;
 import com.svtu.exception.UserException;
 import com.svtu.mapper.UserMapper;
-import com.svtu.mapper.UserRoleMapper;
 import com.svtu.service.FileService;
 import com.svtu.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
 
 @RestController
 @RequestMapping("/user")
@@ -27,8 +25,6 @@ public class UserController {
     private Common common;
     @Autowired
     private FileService fileService;
-    @Autowired
-    private UserRoleMapper userRoleMapper;
     @Autowired
     private UserMapper userMapper;
 
@@ -69,10 +65,8 @@ public class UserController {
         // 3. 决定实际要改谁
         User targetUser;
         if (adminUserId != null && adminUserId > 0) {
-            // 只有管理员才能改别人
-            List<String> roles = userRoleMapper.selectUserRoleName(userId);
-            boolean isAdmin = roles != null && roles.stream().anyMatch(r -> r != null && r.contains("管理员"));
-            if (!isAdmin) {
+            // 只有管理员才能改别人（角色判断统一走 Common.isAdmin）
+            if (!common.isAdmin(userId)) {
                 throw new UserException(501, "没有权限修改他人信息");
             }
             common.checkUserId(adminUserId);

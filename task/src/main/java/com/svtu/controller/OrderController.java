@@ -28,6 +28,18 @@ public class OrderController {
         return orderService.selectAllOrder();
     }
 
+    /**
+     * 客服/管理员：查询全部订单（所有状态），可按状态/关键字筛选
+     * GET /order/AllOrderForService?state=0|1|2|3&keyword=xxx
+     */
+    @GetMapping("/AllOrderForService")
+    @PreAuthorize("hasRole('客服') or hasRole('管理员')")
+    public Result<List<OrderVO>> selectAllOrderForService(
+            @RequestParam(value = "state", required = false) String state,
+            @RequestParam(value = "keyword", required = false) String keyword) {
+        return orderService.selectAllOrderForService(state, keyword);
+    }
+
     @GetMapping("/searchOrder")
     public Result<List<OrderVO>> selectSearchOrder(@RequestParam(required = false) String searchNum) {
         return orderService.selectSearchOrder(searchNum);
@@ -52,6 +64,17 @@ public class OrderController {
     public Result<Void> CancelGetterUpdateOrder(@RequestParam("orderId") int orderId){
         return orderService.CancelGetterUpdateOrder(orderId);
     }
+
+    /**
+     * 接单人撤销"已完成"：已完成(state=2)回退为已被接取(state=1)，
+     * 接单人需重新提交结果路径，订单再次进入审核流程
+     */
+    @PutMapping("/revokeComplete")
+    public Result<Void> revokeComplete(@RequestParam("orderId") int orderId){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        int userId=(Integer) authentication.getPrincipal();
+        return orderService.revokeCompleteOrder(orderId, userId);
+    }
     @PutMapping("/senderUpdateOrder")
     public Result<Void> senderUpdateOrder(@RequestBody Order order){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -72,7 +95,7 @@ public class OrderController {
     }
 
     @PostMapping("/addOrder")
-    public Result<Void> insertOrder(@RequestBody Order order) {
+    public Result<Integer> insertOrder(@RequestBody Order order) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         int userId=(Integer) authentication.getPrincipal();
         return orderService.insertOrder(order, userId);

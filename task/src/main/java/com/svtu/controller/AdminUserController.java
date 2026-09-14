@@ -7,6 +7,7 @@ import com.svtu.service.AdminUserService;
 import com.svtu.service.AdminUserService;
 import com.svtu.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,6 +18,7 @@ import java.util.Objects;
 
 @RestController
 @RequestMapping("/admin/user")
+@PreAuthorize("hasRole('管理员')")
 public class AdminUserController {
     @Autowired
     private AdminUserService adminUserService;

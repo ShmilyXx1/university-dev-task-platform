@@ -5,7 +5,6 @@ import com.svtu.entity.ChatMessage;
 import com.svtu.entity.User;
 import com.svtu.mapper.ChatMessageMapper;
 import com.svtu.mapper.UserMapper;
-import com.svtu.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,10 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
-/**
- * 聊天 REST 接口：历史查询、未读查询、已读标记
- * 实时消息走 WebSocket (/ws/chat/{token})
- */
 @RestController
 @RequestMapping("/chat")
 public class ChatController {
@@ -27,15 +22,11 @@ public class ChatController {
     @Autowired
     private UserMapper userMapper;
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    /** 查询与某人的聊天历史 */
+    /** 查询与某人的聊天历史（双向） */
     @GetMapping("/history")
     public Result<List<Map<String, Object>>> history(@RequestParam("peerId") int peerId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         int me = (Integer) auth.getPrincipal();
-
         List<ChatMessage> list = chatMessageMapper.selectHistory(me, peerId);
         List<Map<String, Object>> res = new ArrayList<>();
         for (ChatMessage m : list) {
@@ -57,14 +48,12 @@ public class ChatController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         int me = (Integer) auth.getPrincipal();
 
-        // 总数
         int total = 0;
-        List<Object[]> groups = chatMessageMapper.selectUnreadCountByFrom(me);
-        // 构造 { fromUserId -> count } 同时查用户名
+        List<Map<String, Object>> groups = chatMessageMapper.selectUnreadCountByFrom(me);
         List<Map<String, Object>> details = new ArrayList<>();
-        for (Object[] row : groups) {
-            int fromUserId = ((Number) row[0]).intValue();
-            int cnt = ((Number) row[1]).intValue();
+        for (Map<String, Object> row : groups) {
+            int fromUserId = ((Number) row.get("fromUserId")).intValue();
+            int cnt = ((Number) row.get("cnt")).intValue();
             total += cnt;
             User u = userMapper.selectById(fromUserId);
             Map<String, Object> item = new LinkedHashMap<>();
@@ -80,7 +69,7 @@ public class ChatController {
         return Result.success(result);
     }
 
-    /** 将某人发来的消息标记为已读 */
+    /** 标记消息已读 */
     @PutMapping("/read")
     public Result<Void> markRead(@RequestParam(value = "fromUserId", required = false) Integer fromUserId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

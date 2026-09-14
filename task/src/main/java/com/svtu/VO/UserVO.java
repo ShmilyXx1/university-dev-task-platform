@@ -7,10 +7,11 @@ import java.util.Date;
 
 @Data
 public class UserVO {
-    private int userId;
+    private Integer userId;
     private String username;
     private String nickname;
     private  String phone;
+    private String position;
     private String sex;
     private int age;
     private String email;

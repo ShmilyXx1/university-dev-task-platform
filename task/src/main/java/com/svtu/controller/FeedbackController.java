@@ -3,7 +3,6 @@ package com.svtu.controller;
 import com.svtu.VO.FeedbackVO;
 import com.svtu.common.Result;
 import com.svtu.entity.Common;
-import com.svtu.entity.Feedback;
 import com.svtu.service.FeedbackService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -51,16 +50,19 @@ public class FeedbackController {
     public Result<Void> deleteFeedback(@RequestParam("feedbackId") int feedbackId){
         return feedbackService.deleteFeedback(feedbackId);
     }
+
+    //客服/管理员：查询全部用户反馈（type: 0未解决 1已解决，不传=全部）
     @GetMapping("/AllFeedback")
     @PreAuthorize("hasRole('客服') or hasRole('管理员')")
-    public Result<List<Feedback>> selectAllFeedback(@RequestParam(value = "type", required = false) String type){
+    public Result<List<FeedbackVO>> selectAllFeedback(@RequestParam(value = "type", required = false) String type){
         return feedbackService.selectAllFeedback(type);
     }
+
+    //客服/管理员：回复用户反馈
     @PutMapping("/serviceReply")
     @PreAuthorize("hasRole('客服') or hasRole('管理员')")
     public Result<Void> serviceReply(@RequestParam("feedbackId") int feedbackId,
                                      @RequestParam("reply") String reply){
         return feedbackService.serviceReply(feedbackId, reply);
     }
-
 }

@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.svtu.mapper.OrderMapper">
+    <!-- 物理删除：仅管理员可调用，权限在 Service 层通过角色校验 -->
     <delete id="deleteOrder">
         DELETE FROM t_order
         WHERE order_id = #{orderId}
-          AND (sender_id = #{userId} OR #{userId} =4)
     </delete>
+
+    <!-- 发单人取消订单：仅待被接取(state=0)、仅本人可操作，标记为已取消(state=3)，记录保留 -->
+    <update id="cancelOrder">
+        UPDATE t_order
+        SET state = '3', update_datetime = NOW()
+        WHERE order_id = #{orderId}
+          AND sender_id = #{userId}
+          AND state = '0'
+    </update>
 
     <select id="selectOrder" resultType="com.svtu.VO.OrderVO">
         SELECT o.order_id,
@@ -21,11 +30,14 @@
                o.auditor_complete,
                o.release_datetime,
                o.end_datetime,
-               o.complete_datetime
+               o.complete_datetime,
+               o.pay_state,
+               o.deposit_state
         FROM t_order o
                  LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
                  LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
         WHERE o.state = '0'
+          AND o.pay_state = '1'
           AND (o.title LIKE CONCAT('%', #{searchNum}, '%') OR o.content LIKE CONCAT('%', #{searchNum}, '%') OR u_sender.username=#{searchNum} OR u_getter.username=#{searchNum} OR o.type=#{serachNum} OR o.order_id=#{searchNum})
         ORDER BY o.release_datetime DESC
     </select>
@@ -44,12 +56,15 @@
                o.auditor_complete,
                o.release_datetime,
                o.end_datetime,
-               o.complete_datetime
+               o.complete_datetime,
+               o.pay_state,
+               o.deposit_state
         FROM t_order o
                  LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
                  LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
         <where>
               o.state = '0'
+            AND o.pay_state = '1'
             <if test="type!=null">
                  and o.type=#{type}
             </if>
@@ -79,11 +94,14 @@
                o.auditor_complete,
                o.release_datetime,
                o.end_datetime,
-               o.complete_datetime
+               o.complete_datetime,
+               o.pay_state,
+               o.deposit_state
         FROM t_order o
                  LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
                  LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
         WHERE o.state = '0'
+          AND o.pay_state = '1'
         ORDER BY o.release_datetime DESC
     </select>
     <select id="selectOneOrder" resultType="com.svtu.VO.OrderVO">
@@ -100,7 +118,9 @@
                o.auditor_complete,
                o.release_datetime,
                o.end_datetime,
-               o.complete_datetime
+               o.complete_datetime,
+               o.pay_state,
+               o.deposit_state
         FROM t_order o
                  LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
                  LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
@@ -120,7 +140,9 @@
         o.auditor_complete,
         o.release_datetime,
         o.end_datetime,
-        o.complete_datetime
+        o.complete_datetime,
+        o.pay_state,
+        o.deposit_state
         FROM t_order o
         LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
         LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
@@ -146,7 +168,9 @@
         o.auditor_complete,
         o.release_datetime,
         o.end_datetime,
-        o.complete_datetime
+        o.complete_datetime,
+        o.pay_state,
+        o.deposit_state
         FROM t_order o
         LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
         LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
@@ -158,6 +182,42 @@
         </where>
         ORDER BY release_datetime desc
     </select>
+    <!-- 客服/管理员：查询全部订单（所有状态，含未托管），可按状态/关键字筛选 -->
+    <select id="selectAllOrderForService" resultType="com.svtu.VO.OrderVO">
+        SELECT o.order_id,
+               u_sender.username AS sender_name,
+               u_getter.username AS getter_name,
+               o.title,
+               o.content,
+               o.type,
+               o.deposit,
+               o.sender_price,
+               o.state,
+               o.user_complete,
+               o.auditor_complete,
+               o.release_datetime,
+               o.end_datetime,
+               o.complete_datetime,
+               o.pay_state,
+               o.deposit_state
+        FROM t_order o
+                 LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
+                 LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
+        <where>
+            <if test="state != null and state != '' and state != 'all'">
+                AND o.state = #{state}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (o.title LIKE CONCAT('%', #{keyword}, '%')
+                  OR o.content LIKE CONCAT('%', #{keyword}, '%')
+                  OR u_sender.username LIKE CONCAT('%', #{keyword}, '%')
+                  OR u_getter.username LIKE CONCAT('%', #{keyword}, '%')
+                  OR o.type LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY o.release_datetime DESC
+    </select>
+
     <update id="getterUpdateOrder">
         update t_order set state='1',getter_Id=#{userId}  where order_id=#{orderId} and state='0'
     </update>
@@ -169,8 +229,10 @@
             <if test="order.content != null">content = #{order.content},</if>
             <if test="order.type != null">type = #{order.type},</if>
             <if test="order.senderPrice != null">sender_price = #{order.senderPrice},</if>
+            <if test="order.deposit != null">deposit = #{order.deposit},</if>
+            <if test="order.endDatetime != null">end_datetime = #{order.endDatetime},</if>
         </set>
-        where order_id=#{order.orderId} and (sender_id=#{userId} OR #{userId}=4)
+        where order_id=#{order.orderId} and sender_id=#{userId}
     </update>
 
     <update id="resultUpdateOrder">
@@ -178,5 +240,20 @@
     </update>
     <update id="CancelGetterUpdateOrder">
         update t_order set state='0',getter_Id=null  where order_id=#{orderId} and state='1'
+    </update>
+
+    <!-- 接单人撤销"已完成"：仅接单人本人、仅已完成(state=2)的订单可撤销
+         回退为 state=1（已被接取），清空完成标记/审核标记/完成时间
+         赏金重新置为"已托管"(pay_state=1)，便于修改后再次审核结算；
+         押金已在审核通过时原路退还(deposit_state=2)，保持不变避免重复退款 -->
+    <update id="revokeCompleteOrder">
+        update t_order
+        set state='1',
+            user_complete='0',
+            auditor_complete='0',
+            complete_datetime=null,
+            pay_state='1',
+            update_datetime=now()
+        where order_id=#{orderId} and state='2' and getter_id=#{userId}
     </update>
 </mapper>

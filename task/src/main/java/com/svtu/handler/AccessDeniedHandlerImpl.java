@@ -12,15 +12,18 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-
+/**
+ * 已登录但无权限访问（@PreAuthorize 校验失败）
+ * HTTP 403 Forbidden —— 前端不要清除 token，只提示"无权限"
+ */
 @Component
 public class AccessDeniedHandlerImpl implements AccessDeniedHandler {
     @Override
-    public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
-        Result<Object> userResult= Result.error("用户没有该权限");
-        String json= JSON.toJSONString(userResult);
-
-        //处理异常
-        WebUtils.writeJson(response,json);
+    public void handle(HttpServletRequest request, HttpServletResponse response,
+                       AccessDeniedException accessDeniedException) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 403
+        response.setContentType("application/json;charset=UTF-8");
+        Result<Object> result = new Result<>(403, "无权限访问，请联系管理员");
+        response.getWriter().write(JSON.toJSONString(result));
     }
 }

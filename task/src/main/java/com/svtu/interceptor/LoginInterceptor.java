@@ -2,7 +2,6 @@ package com.svtu.interceptor;
 
 import com.svtu.entity.UserLogin;
 import com.svtu.exception.UserException;
-import com.svtu.mapper.UserRoleMapper;
 import com.svtu.util.JwtUtil;
 import com.svtu.util.RedisUtil;
 import io.jsonwebtoken.Claims;
@@ -21,19 +20,17 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Component
-public class LoginInterceptor extends OncePerRequestFilter {   // ✅ 改为继承 OncePerRequestFilter
+public class LoginInterceptor extends OncePerRequestFilter {
 
     @Autowired
     private JwtUtil jwtUtils;
 
     @Autowired
     private RedisUtil redisUtil;
-
-    @Autowired
-    private UserRoleMapper userRoleMapper;
 
     private static final List<String> PUBLIC_PATHS = Arrays.asList(
             "/user/userLogin",
@@ -43,7 +40,8 @@ public class LoginInterceptor extends OncePerRequestFilter {   // ✅ 改为继�
             "/user/registerCheckCode",
             "/user/updatePassword",
             "/user/forgetPasswordGetCode",
-            "/user/forgetPasswordCheckCode"
+            "/user/forgetPasswordCheckCode",
+            "/ws/chat"
     );
 
     @Override
@@ -80,9 +78,9 @@ public class LoginInterceptor extends OncePerRequestFilter {   // ✅ 改为继�
             if (userLogin == null) {
                 throw new UserException(501, "请先登录");
             }
-            // 从角色表查询用户角色名，转换为 ROLE_ 前缀的 GrantedAuthority 集合，
-            // 否则第三个参数为 null 时 @PreAuthorize("hasRole(...)") 等方法级权限校验全部失效
-            List<String> roles = userRoleMapper.selectUserRoleName(userLogin.getUser().getUserId());
+
+            // 4. 从缓存中的 UserLogin 读取角色，构建 authorities 供 @PreAuthorize 使用
+            List<String> roles = userLogin.getRoles();
             List<GrantedAuthority> authorities = new ArrayList<>();
             if (roles != null) {
                 for (String role : roles) {
@@ -95,7 +93,7 @@ public class LoginInterceptor extends OncePerRequestFilter {   // ✅ 改为继�
                     new UsernamePasswordAuthenticationToken(userLogin.getUser().getUserId(), null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
-            // ✅ 放行请求，继续执行后续过滤器链
+            // 放行请求，继续执行后续过滤器链
             chain.doFilter(request, response);
         } catch (Exception e) {
             response.setStatus(401);

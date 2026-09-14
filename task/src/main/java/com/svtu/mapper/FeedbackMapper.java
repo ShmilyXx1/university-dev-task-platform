@@ -14,5 +14,5 @@ public interface FeedbackMapper extends BaseMapper<Feedback> {
     Integer updateUserFeedbackByContent(@Param("content")String content,@Param("feedbackId") int feedbackId);
     Integer updateUserFeedbackBySolve(@Param("solve") String solve,@Param("feedbackId") int feedbackId);
     Integer serviceReply(@Param("feedbackId") int feedbackId, @Param("reply") String reply);
-    List<Feedback> selectAllFeedback(String type);
+    List<FeedbackVO> selectAllFeedback(String type);
 }

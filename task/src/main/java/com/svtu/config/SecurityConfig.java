@@ -73,8 +73,7 @@ public class SecurityConfig {
                 //anonymous()对登录接口允许匿名访问，登录可访问，未登录不可以访问，这个permitAll()不管登没登录都可以访问
                 .antMatchers("/user/userLogin"
                         ,"/user/registerGetCode","/user/registerCheckCode","/user/register"
-                        ,"/user/updatePassword","/user/forgetPasswordGetCode","/user/forgetPasswordCheckCode"
-                        ,"/user/adminLogin","/ws/**").permitAll()
+                        ,"/user/updatePassword","/user/forgetPasswordGetCode","/user/forgetPasswordCheckCode","/ws/chat/**","/user/adminLogin").permitAll()
                 // 放行图片、静态资源
                 .antMatchers("/images/**", "/static/**", "/css/**", "/js/**").permitAll()
                 // 放行所有 OPTIONS 预检请求（解决跨域403）

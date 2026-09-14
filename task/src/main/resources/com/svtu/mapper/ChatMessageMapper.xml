@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.svtu.mapper.ChatMessageMapper">
+
+    <select id="selectHistory" resultType="com.svtu.entity.ChatMessage">
+        select message_id, from_user_id, to_user_id, content, send_datetime
+        from t_chat_message
+        where (from_user_id = #{userIdA} and to_user_id = #{userIdB})
+           or (from_user_id = #{userIdB} and to_user_id = #{userIdA})
+        order by send_datetime asc
+    </select>
+
+</mapper>

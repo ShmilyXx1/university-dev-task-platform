@@ -24,12 +24,13 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     public Result<Void> addFeedback(String content,int userId) {
         common.checkUserId(userId);
-        if (content==null){
+        if (content==null||content.trim().isEmpty()){
             throw new UserException(501,"当前问题的内容是空的");
         }
         Feedback feedback=new Feedback();
-        feedback.setContent(content);
+        feedback.setContent(content.trim());
         feedback.setUserId(userId);
+        feedback.setSolve("0");//新建反馈默认未解决
         int rows=feedbackMapper.insert(feedback);
         if (rows<=0){
             throw new UserException(501,"问题反馈新建失败");
@@ -71,6 +72,9 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     public Result<Void> updateUserFeedbackToSolve(String solve, int feedbackId) {
         common.checkFeedbackId(feedbackId);
+        if (!"0".equals(solve)&&!"1".equals(solve)){
+            throw new UserException(501,"solve值有问题");
+        }
         Integer rows = feedbackMapper.updateUserFeedbackBySolve(solve,feedbackId);
         if (rows<=0){
             throw new UserException(501,"修改问题反馈状态失败");
@@ -89,27 +93,28 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
-    public Result<Void> serviceReply(int feedbackId, String reply) {
-        common.checkFeedbackId(feedbackId);
-        if (reply == null || reply.trim().isEmpty()) {
-            throw new AdminException(502, "回复内容不能为空");
-        }
-        Integer rows = feedbackMapper.serviceReply(feedbackId, reply.trim());
-        if (rows <= 0) {
-            throw new AdminException(502, "回复失败，反馈不存在");
-        }
-        return Result.success();
-    }
-
-    @Override
-    public Result<List<Feedback>> selectAllFeedback(String type) {
-        if (!("0".equals(type)||"1".equals(type)||type==null)){
+    public Result<List<FeedbackVO>> selectAllFeedback(String type) {
+        if (type!=null&&!"".equals(type)&&!"0".equals(type)&&!"1".equals(type)){
             throw new AdminException(502,"解决类型错误");
         }
-        List<Feedback> list = feedbackMapper.selectAllFeedback(type);
+        List<FeedbackVO> list = feedbackMapper.selectAllFeedback(type);
         if (list==null||list.isEmpty()){
             list=new ArrayList<>();
         }
         return Result.success(list);
+    }
+
+    @Override
+    //客服回复反馈（回复后用户可在客户端看到并确认是否解决）
+    public Result<Void> serviceReply(int feedbackId, String reply) {
+        common.checkFeedbackId(feedbackId);
+        if (reply==null||reply.trim().isEmpty()){
+            throw new AdminException(502,"回复内容不能为空");
+        }
+        Integer rows = feedbackMapper.serviceReply(feedbackId, reply.trim());
+        if (rows<=0){
+            throw new AdminException(502,"回复失败：反馈不存在");
+        }
+        return Result.success();
     }
 }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.svtu.mapper.AuditorMapper">
-    <select id="selectAllUserCompleteOrder" resultType="com.svtu.entity.Order">
+    <select id="selectAllUserCompleteOrder" resultType="com.svtu.VO.OrderVO">
         SELECT o.order_id,
                u_sender.username AS sender_name,
                u_getter.username AS getter_name,
@@ -9,21 +9,24 @@
                o.content,
                o.type,
                o.sender_price,
-               o.getter_price,
+               o.deposit,
                o.state,
                o.document_path,
                o.user_complete,
                o.auditor_complete,
                o.release_datetime,
                o.end_datetime,
-               o.complete_datetime
+               o.complete_datetime,
+               o.update_datetime,
+               o.pay_state,
+               o.deposit_state
         FROM t_order o
                  LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
                  LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
-        WHERE o.user_complete='1'
+        WHERE o.user_complete='1' AND o.state='1'
         ORDER BY o.release_datetime DESC
     </select>
-    <select id="selectUserCompleteOneOrder" resultType="com.svtu.entity.Order">
+    <select id="selectUserCompleteOneOrder" resultType="com.svtu.VO.OrderVO">
         SELECT o.order_id,
                u_sender.username AS sender_name,
                u_getter.username AS getter_name,
@@ -31,27 +34,38 @@
                o.content,
                o.type,
                o.sender_price,
-               o.getter_price,
+               o.deposit,
                o.state,
                o.document_path,
                o.user_complete,
                o.auditor_complete,
                o.release_datetime,
                o.end_datetime,
-               o.complete_datetime
+               o.complete_datetime,
+               o.update_datetime,
+               o.pay_state,
+               o.deposit_state
         FROM t_order o
                  LEFT JOIN t_user u_sender ON o.sender_id = u_sender.user_id
                  LEFT JOIN t_user u_getter ON o.getter_id = u_getter.user_id
         WHERE order_id=#{orderId}
     </select>
 
+    <!--
+        审核：auditorComplete=1 通过（state->2 已完成，记录完成时间）
+              auditorComplete=2 驳回（state 保持 1，user_complete 重置为 0，接单人修改后可重新提交）
+    -->
     <update id="auditorUpdateOrder">
         update t_order
         <set>
             auditor_complete=#{auditorComplete},
             <if test='auditorComplete == "1"'>
-                state='2',complete_datetime=now()
+                state='2',complete_datetime=now(),
             </if>
+            <if test='auditorComplete == "2"'>
+                user_complete='0',
+            </if>
+            update_datetime=now()
         </set>
         where order_id=#{orderId} and state='1' and user_complete='1'
     </update>

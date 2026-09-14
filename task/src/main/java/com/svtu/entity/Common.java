@@ -5,8 +5,11 @@ import com.svtu.exception.UserException;
 import com.svtu.mapper.OrderMapper;
 import com.svtu.mapper.FeedbackMapper;
 import com.svtu.mapper.UserMapper;
+import com.svtu.mapper.UserRoleMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class Common {
@@ -16,6 +19,31 @@ public class Common {
     private OrderMapper orderMapper;
     @Autowired
     private FeedbackMapper feedbackMapper;
+    @Autowired
+    private UserRoleMapper userRoleMapper;
+
+    /**
+     * 查询用户拥有的所有角色名称（来源：t_user_role 关联 t_role）
+     */
+    public List<String> getRoleNames(int userId) {
+        return userRoleMapper.selectUserRoleName(userId);
+    }
+
+    /**
+     * 判断用户是否拥有指定角色
+     * @param roleName 角色名称，如 "管理员"、"审核员"、"客服"
+     */
+    public boolean hasRole(int userId, String roleName) {
+        List<String> roles = userRoleMapper.selectUserRoleName(userId);
+        return roles != null && roles.stream().anyMatch(r -> r != null && r.contains(roleName));
+    }
+
+    /**
+     * 判断用户是否为管理员
+     */
+    public boolean isAdmin(int userId) {
+        return hasRole(userId, "管理员");
+    }
     public void checkLogin(User user) {
         checkPhone(user.getPhone());
         if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
