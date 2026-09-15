@@ -53,8 +53,7 @@
         └── resources/
             ├── application.properties
             └── sql/
-                ├── db_task_init.sql   # 完整建库脚本（表结构+演示数据）
-                └── pay_init.sql       # 支付模块增量升级脚本
+                └── db_task_init.sql   # 完整建库脚本（表结构+演示数据，含支付模块）
 ```
 
 ## 快速开始
@@ -69,16 +68,10 @@
 
 脚本位于 `task/src/main/resources/sql/`：
 
-- **全新部署**：直接执行 `db_task_init.sql`，会自动创建 `db_task` 数据库、全部 7 张表，并写入角色、测试账号等演示数据：
+直接执行 `db_task_init.sql`，会自动创建 `db_task` 数据库、全部 7 张表（含支付模块的 `t_payment` 表与 `t_order` 支付字段），并写入角色、测试账号等演示数据：
 
 ```bash
 mysql -uroot -p < task/src/main/resources/sql/db_task_init.sql
-```
-
-- 已有旧库、仅需升级支付功能时，才执行增量脚本 `pay_init.sql`（为 `t_order` 增加支付字段、创建 `t_payment` 表）：
-
-```sql
-source task/src/main/resources/sql/pay_init.sql;
 ```
 
 ### 2. 启动后端
