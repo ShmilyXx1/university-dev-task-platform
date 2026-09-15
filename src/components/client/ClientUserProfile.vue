@@ -1,13 +1,13 @@
 <template>
   <div class="profile-page">
-    <el-container style="height: 100vh; background: #f5f7fa">
-      <el-header style="background: #fff; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #e4e7ed">
+    <el-container class="profile-container">
+      <el-header class="page-header">
         <el-button @click="goBack" :icon="ArrowLeft" circle />
-        <span style="margin-left: 12px; font-size: 18px; font-weight: bold">用户信息</span>
+        <span class="header-title">用户信息</span>
       </el-header>
 
-      <el-main style="padding: 20px; display: flex; justify-content: center">
-        <el-card v-loading="loading" style="width: 680px" shadow="hover">
+      <el-main class="page-main">
+        <el-card v-loading="loading" class="profile-card" shadow="hover">
           <div v-if="user" class="profile-content">
             <!-- 头像 + 基本信息 -->
             <div class="user-header">
@@ -17,7 +17,7 @@
               <div class="user-basic">
                 <h2 class="username">{{ user.username || '用户' }}</h2>
                 <p class="nickname" v-if="user.nickname">{{ user.nickname }}</p>
-                <div style="margin-top: 8px; display: flex; gap: 8px">
+                <div class="user-actions">
                   <el-button type="primary" :icon="ChatDotRound" size="small" @click="sendPrivateMsg">
                     私信
                   </el-button>
@@ -38,7 +38,7 @@
               <el-descriptions-item label="注册时间" :span="2">{{ formatDate(user.registerDatetime) }}</el-descriptions-item>
             </el-descriptions>
           </div>
-          <div v-else-if="!loading" style="text-align: center; padding: 40px; color: #909399">
+          <div v-else-if="!loading" class="empty-state">
             用户不存在
           </div>
         </el-card>
@@ -121,26 +121,98 @@ onMounted(loadUser)
 </script>
 
 <style scoped>
+.profile-container {
+  height: 100vh;
+  background: var(--content-bg);
+}
+.page-header {
+  background: rgba(255, 255, 255, .85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, .04);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.page-main {
+  background: var(--content-bg);
+  padding: 20px;
+}
+.profile-card {
+  width: 680px;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.header-title {
+  margin-left: 12px;
+  font-size: 18px;
+  font-weight: bold;
+}
+.user-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #909399;
+}
+
 .profile-content {
   padding: 10px 0;
 }
 .user-header {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 24px;
-  padding: 16px 20px;
+  padding: 26px 24px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 28px -14px rgba(64, 128, 255, .6);
+}
+.user-header::after {
+  content: '';
+  position: absolute;
+  right: -50px;
+  top: -70px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  pointer-events: none;
+}
+.user-header :deep(.el-avatar) {
+  position: relative;
+  z-index: 1;
+  border: 3px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 8px 20px rgba(8, 22, 41, .22);
 }
 .user-basic {
+  position: relative;
+  z-index: 1;
   flex: 1;
 }
 .username {
   margin: 0 0 4px;
   font-size: 22px;
-  color: #303133;
+  color: #fff;
 }
 .nickname {
-  margin: 0 0 8px;
-  color: #909399;
+  margin: 0 0 10px;
+  color: rgba(255, 255, 255, .8);
   font-size: 14px;
+}
+.user-header :deep(.el-button--primary) {
+  background: #fff !important;
+  color: var(--primary) !important;
+  box-shadow: 0 4px 12px rgba(8, 22, 41, .18);
 }
 </style>

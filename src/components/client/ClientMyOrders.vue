@@ -5,7 +5,7 @@
       <el-card class="header-card" shadow="never">
         <div class="header-inner">
           <el-button type="primary" text @click="goBack">
-            <el-icon style="margin-right:4px"><ArrowLeft /></el-icon>返回个人中心
+            <el-icon class="back-icon"><ArrowLeft /></el-icon>返回个人中心
           </el-button>
           <h2 class="page-title">我的订单</h2>
           <el-tag size="large" type="info">{{ userStore.username || '用户' }}</el-tag>
@@ -14,7 +14,7 @@
     </div>
 
     <div class="page-body">
-      <el-card shadow="hover" style="border-radius:12px">
+      <el-card shadow="hover" class="content-card">
         <!-- 第一层 Tab: 发布的 / 接取的 -->
         <el-tabs v-model="mainTab" type="card" @tab-change="onMainTabChange">
           <!-- ============ Tab1: 我发布的 ============ -->
@@ -31,13 +31,13 @@
                 @click="changeSenderState(item.value)"
               >
                 {{ item.label }}
-                <span v-if="countMap[mainTab + '_' + item.value] != null" style="margin-left:4px;opacity:.85">
+                <span v-if="countMap[mainTab + '_' + item.value] != null" class="count-span">
                   ({{ countMap[mainTab + '_' + item.value] }})
                 </span>
               </el-tag>
             </div>
 
-            <el-table :data="list" border stripe v-loading="loading" style="margin-top:14px">
+            <el-table :data="list" border stripe v-loading="loading" class="state-table">
               <el-table-column prop="orderId" label="订单ID" width="80"/>
               <el-table-column prop="title" label="订单标题"/>
               <el-table-column prop="content" label="订单内容" show-overflow-tooltip/>
@@ -90,13 +90,13 @@
                 @click="changeGetterState(item.value)"
               >
                 {{ item.label }}
-                <span v-if="countMap[mainTab + '_' + item.value] != null" style="margin-left:4px;opacity:.85">
+                <span v-if="countMap[mainTab + '_' + item.value] != null" class="count-span">
                   ({{ countMap[mainTab + '_' + item.value] }})
                 </span>
               </el-tag>
             </div>
 
-            <el-table :data="list" border stripe v-loading="loading" style="margin-top:14px">
+            <el-table :data="list" border stripe v-loading="loading" class="state-table">
               <el-table-column prop="orderId" label="订单ID" width="80"/>
               <el-table-column prop="title" label="订单标题"/>
               <el-table-column prop="content" label="订单内容" show-overflow-tooltip/>
@@ -151,7 +151,7 @@
             <el-input type="textarea" v-model="editForm.content" :rows="4" maxlength="500" show-word-limit placeholder="请输入详细需求"/>
           </el-form-item>
           <el-form-item label="订单类型">
-            <el-select v-model="editForm.type" placeholder="请选择类型" style="width:100%">
+            <el-select v-model="editForm.type" placeholder="请选择类型" class="full-width">
               <el-option label="编程" value="编程" />
               <el-option label="学习" value="学习" />
               <el-option label="设计" value="设计" />
@@ -160,7 +160,7 @@
             </el-select>
           </el-form-item>
           <el-form-item label="订单报价(¥)">
-            <el-input-number v-model="editForm.senderPrice" :min="1" :max="99999" controls-position="right" style="width:100%"/>
+            <el-input-number v-model="editForm.senderPrice" :min="1" :max="99999" controls-position="right" class="full-width"/>
           </el-form-item>
           <el-form-item label="截止时间">
             <el-date-picker
@@ -168,7 +168,7 @@
               type="datetime"
               placeholder="选择截止日期时间"
               value-format="YYYY-MM-DD HH:mm:ss"
-              style="width:100%"
+              class="full-width"
             />
           </el-form-item>
         </el-form>
@@ -487,7 +487,11 @@ onMounted(async () => {
   display: flex; align-items: center; justify-content: space-between;
 }
 .page-title {
-  margin: 0; font-size: 20px; font-weight: 600; color: #303133;
+  margin: 0; font-size: 20px; font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .page-body { padding: 20px 24px 40px; }
 
@@ -503,4 +507,10 @@ onMounted(async () => {
 .tag-item:hover { opacity: .82; transform: translateY(-1px); }
 :deep(.el-tabs__header) { margin-bottom: 18px; }
 :deep(.el-tabs__item) { font-size: 15px; }
+
+.back-icon { margin-right: 4px; }
+.content-card { border-radius: 12px; }
+.count-span { margin-left: 4px; opacity: .85; }
+.state-table { margin-top: 14px; }
+.full-width { width: 100%; }
 </style>

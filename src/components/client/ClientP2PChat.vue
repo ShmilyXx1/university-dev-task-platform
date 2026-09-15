@@ -1,20 +1,20 @@
 <template>
-  <el-container style="height: 100vh; background: #f5f7fa">
-    <el-header style="background: #fff; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #e4e7ed">
+  <el-container class="chat-page">
+    <el-header class="chat-header">
       <el-button @click="goBack" :icon="ArrowLeft" circle />
-      <span style="margin-left: 12px; font-size: 18px; font-weight: bold">
+      <span class="header-title">
         与 {{ peerName || ('用户 ' + peerId) }} 聊天
       </span>
-      <el-tag size="small" style="margin-left: 12px" :type="online ? 'success' : 'info'">
+      <el-tag size="small" class="header-tag" :type="online ? 'success' : 'info'">
         {{ online ? '在线' : '离线' }}
       </el-tag>
     </el-header>
 
-    <el-main style="padding: 20px; display: flex; justify-content: center">
-      <el-card shadow="hover" style="width: 760px; display: flex; flex-direction: column">
+    <el-main class="chat-main">
+      <el-card shadow="hover" class="chat-card">
         <div class="chat-body">
           <div class="msg-box" ref="msgBoxRef">
-            <div v-if="msgList.length === 0" style="text-align:center; color:#999; margin-top: 60px">
+            <div v-if="msgList.length === 0" class="empty-tip">
               开始与 {{ peerName || '对方' }} 的对话吧
             </div>
             <div v-for="(msg, idx) in msgList" :key="idx" class="msg-row" :class="msg.from">
@@ -155,6 +155,35 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.chat-page {
+  height: 100vh;
+  background: var(--content-bg);
+}
+.chat-header {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+.header-title {
+  margin-left: 12px;
+  font-size: 18px;
+  font-weight: bold;
+}
+.header-tag {
+  margin-left: 12px;
+}
+.chat-main {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+.chat-card {
+  width: 760px;
+  display: flex;
+  flex-direction: column;
+}
 .chat-body {
   min-height: 60vh;
   display: flex;
@@ -166,13 +195,14 @@ onBeforeUnmount(() => {
   max-height: 60vh;
   overflow-y: auto;
   padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
+  background: var(--content-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 .msg-row {
   margin-bottom: 16px;
   max-width: 70%;
+  word-wrap: break-word;
 }
 .msg-row.me {
   margin-left: auto;
@@ -184,23 +214,27 @@ onBeforeUnmount(() => {
 .msg-content {
   display: inline-block;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   line-height: 1.6;
   text-align: left;
   white-space: pre-wrap;
   word-break: break-word;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 .msg-row.me .msg-content {
-  background: #409EFF;
+  background: var(--gradient-primary);
   color: #fff;
+  box-shadow: 0 6px 14px -6px rgba(64, 128, 255, .55);
 }
 .msg-row.other .msg-content {
   background: #fff;
-  border: 1px solid #e4e7ed;
+  color: #303133;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, .05);
 }
 .msg-time {
   font-size: 11px;
-  color: #aaa;
+  color: #999;
   margin-top: 4px;
 }
 .send-area {
@@ -208,5 +242,10 @@ onBeforeUnmount(() => {
   gap: 10px;
   align-items: flex-end;
   padding: 12px 0 0;
+}
+.empty-tip {
+  text-align: center;
+  color: #999;
+  margin-top: 60px;
 }
 </style>

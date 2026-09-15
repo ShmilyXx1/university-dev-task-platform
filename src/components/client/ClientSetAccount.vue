@@ -9,7 +9,7 @@
 
     <el-card class="login-card" shadow="hover">
       <div class="card-header">
-        <el-icon color="#409EFF" size="42"><Key /></el-icon>
+        <el-icon class="login-icon" color="#409EFF" size="42"><Key /></el-icon>
         <h1 class="login-title">设置账号</h1>
       </div>
 
@@ -35,7 +35,7 @@
         <el-row :gutter="10">
           <el-col :span="12">
             <el-form-item>
-              <el-select v-model="form.sex" placeholder="性别" size="large" style="width: 100%">
+              <el-select v-model="form.sex" placeholder="性别" size="large" class="full-width">
                 <el-option label="男" value="男" />
                 <el-option label="女" value="女" />
               </el-select>
@@ -43,7 +43,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item>
-              <el-input-number v-model="form.age" :min="0" :max="150" size="large" placeholder="年龄" style="width: 100%" controls-position="right" />
+              <el-input-number v-model="form.age" :min="0" :max="150" size="large" placeholder="年龄" class="full-width" controls-position="right" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -156,7 +156,11 @@ const doRegister = async () => {
 <style scoped>
 .reset-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e6edff 100%);
+  background:
+    radial-gradient(900px 480px at 12% -8%, rgba(64, 128, 255, .22), transparent 60%),
+    radial-gradient(760px 420px at 105% 12%, rgba(54, 207, 201, .18), transparent 55%),
+    radial-gradient(700px 500px at 50% 120%, rgba(64, 128, 255, .14), transparent 60%),
+    linear-gradient(135deg, #eef3ff 0%, #e3eeff 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -191,10 +195,13 @@ const doRegister = async () => {
 }
 
 .login-card {
-  width: 520px;
-  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: var(--radius);
   padding: 35px 30px;
   background-color: #ffffff;
+  box-shadow: var(--shadow);
 }
 
 .card-header {
@@ -229,7 +236,7 @@ const doRegister = async () => {
   text-align: right;
 }
 .back-link {
-  color: #409EFF;
+  color: var(--primary);
   font-size: 14px;
   text-decoration: none;
 }
@@ -251,7 +258,7 @@ const doRegister = async () => {
   transition: border-color 0.2s;
 }
 .avatar-uploader :deep(.el-upload:hover) {
-  border-color: #409EFF;
+  border-color: var(--primary);
 }
 .avatar-uploader-icon {
   font-size: 28px;
@@ -268,5 +275,8 @@ const doRegister = async () => {
   font-size: 12px;
   margin-top: 8px;
   text-align: left;
+}
+.full-width {
+  width: 100%;
 }
 </style>

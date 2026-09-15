@@ -14,12 +14,12 @@
 
     <div class="notif-panel">
       <div class="notif-header">
-        <span style="font-weight:600">消息通知</span>
+        <span class="notif-title">消息通知</span>
         <el-button link size="small" @click="markAll" :disabled="!chatStore.hasUnread">全部已读</el-button>
       </div>
       <div v-if="chatStore.details.length === 0" class="notif-empty">
         <el-icon :size="36" color="#c0c4cc"><Bell /></el-icon>
-        <div style="margin-top:8px;color:#909399;font-size:13px">暂无新消息</div>
+        <div class="notif-empty-text">暂无新消息</div>
       </div>
       <div v-else class="notif-list">
         <div
@@ -28,7 +28,7 @@
           class="notif-item"
           @click="goChat(item)"
         >
-          <el-avatar :size="32" style="background:#409EFF;margin-right:10px">
+          <el-avatar :size="32" class="notif-avatar">
             {{ (item.username || 'U').charAt(0).toUpperCase() }}
           </el-avatar>
           <div class="notif-info">
@@ -89,12 +89,17 @@ onMounted(() => {
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
+  transition: background-color 0.2s;
 }
 .bell-trigger:hover {
-  background: #f0f2f5;
+  background: var(--primary-light);
 }
 .bell-icon {
   color: #606266;
+  transition: color 0.2s;
+}
+.bell-trigger:hover .bell-icon {
+  color: var(--primary);
 }
 .notif-panel {
   max-height: 400px;
@@ -105,12 +110,20 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 8px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
+}
+.notif-title {
+  font-weight: 600;
 }
 .notif-empty {
   text-align: center;
   padding: 30px 0;
+}
+.notif-empty-text {
+  margin-top: 8px;
+  color: #909399;
+  font-size: 13px;
 }
 .notif-list {
   display: flex;
@@ -124,7 +137,11 @@ onMounted(() => {
   border-radius: 6px;
 }
 .notif-item:hover {
-  background: #f5f7fa;
+  background: var(--content-bg);
+}
+.notif-avatar {
+  background: var(--gradient-primary);
+  margin-right: 10px;
 }
 .notif-info {
   flex: 1;

@@ -1,15 +1,15 @@
 <template>
-  <el-container style="height: 100vh; background: #f5f7fa">
-    <el-header style="background: #fff; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #e4e7ed">
+  <el-container class="page-container">
+    <el-header class="page-header">
       <el-button @click="handleBack" :icon="ArrowLeft" circle />
-      <span style="margin-left: 12px; font-size: 18px; font-weight: bold">订单详情</span>
+      <span class="page-title">订单详情</span>
     </el-header>
 
-    <el-main style="padding: 20px; display: flex; justify-content: center">
-      <el-card style="width: 820px" shadow="hover" v-loading="loading">
+    <el-main class="page-main">
+      <el-card class="detail-card" shadow="hover" v-loading="loading">
         <template #header v-if="detail">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-            <span style="font-size: 16px; font-weight: 600">
+          <div class="card-header-bar">
+            <span class="card-title">
               #{{ detail.orderId }} - {{ detail.title }}
             </span>
             <el-tag :type="stateTagType(detail.state)" size="large" effect="dark">
@@ -27,8 +27,8 @@
           </el-descriptions-item>
 
           <el-descriptions-item label="发布人">
-            <div style="display:flex;align-items:center;gap:8px">
-              <el-avatar :size="28" style="background:#409EFF">{{ detail.senderName ? detail.senderName.charAt(0).toUpperCase() : '-' }}</el-avatar>
+            <div class="user-cell">
+              <el-avatar :size="28" class="sender-avatar">{{ detail.senderName ? detail.senderName.charAt(0).toUpperCase() : '-' }}</el-avatar>
               <el-button v-if="detail.senderName" link type="primary" @click="goUserProfile(detail.senderName)">{{ detail.senderName }}</el-button>
               <span v-else>-</span>
               <el-button
@@ -44,40 +44,40 @@
             </div>
           </el-descriptions-item>
           <el-descriptions-item label="接单人">
-            <div style="display:flex;align-items:center;gap:8px">
+            <div class="user-cell">
               <template v-if="detail.getterName">
-                <el-avatar :size="28" style="background:#67C23A">{{ detail.getterName.charAt(0).toUpperCase() }}</el-avatar>
+                <el-avatar :size="28" class="getter-avatar">{{ detail.getterName.charAt(0).toUpperCase() }}</el-avatar>
                 <el-button link type="primary" @click="goUserProfile(detail.getterName)">{{ detail.getterName }}</el-button>
               </template>
-              <span v-else style="color:#909399">暂未接取</span>
+              <span v-else class="text-muted">暂未接取</span>
             </div>
           </el-descriptions-item>
 
           <el-descriptions-item label="发布方报价">
-            <span style="color:#F56C6C;font-weight:700;font-size:16px">¥ {{ detail.senderPrice }}</span>
+            <span class="price-text">¥ {{ detail.senderPrice }}</span>
           </el-descriptions-item>
 
           <el-descriptions-item label="押金">
-            <span v-if="detail.deposit != null" style="color:#E6A23C;font-weight:700;font-size:16px">¥ {{ detail.deposit }}</span>
-            <span v-else style="color:#909399">无押金</span>
+            <span v-if="detail.deposit != null" class="deposit-text">¥ {{ detail.deposit }}</span>
+            <span v-else class="text-muted">无押金</span>
           </el-descriptions-item>
 
           <el-descriptions-item label="订单状态" :span="2">
             <el-tag :type="stateTagType(detail.state)">{{ stateText(detail.state) }}</el-tag>
             <el-tag
               :type="String(detail.payState) === '1' ? 'success' : 'info'"
-              style="margin-left:10px"
+              class="status-tag"
             >
               {{ String(detail.payState) === '1' ? '赏金已托管' : '赏金未托管' }}
             </el-tag>
             <el-tag
               v-if="detail.deposit != null && Number(detail.deposit) > 0"
               :type="String(detail.depositState) === '1' ? 'success' : 'warning'"
-              style="margin-left:10px"
+              class="status-tag"
             >
               {{ String(detail.depositState) === '1' ? '押金已支付' : '押金待支付' }}
             </el-tag>
-            <span style="margin-left:16px;color:#909399">
+            <span class="status-info">
               接单人完成：{{ detail.userComplete ? '是' : '否' }}
               &nbsp;|&nbsp;
               审核确认：{{ detail.auditorComplete ? '是' : '否' }}
@@ -95,14 +95,14 @@
           </el-descriptions-item>
 
           <el-descriptions-item label="订单内容" :span="2">
-            <div style="white-space: pre-wrap; line-height: 1.8; min-height: 80px; color: #303133">
+            <div class="order-content">
               {{ detail.content || '-' }}
             </div>
           </el-descriptions-item>
         </el-descriptions>
 
         <!-- 底部操作按钮区 -->
-        <div v-if="detail" style="margin-top:24px;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap">
+        <div v-if="detail" class="action-bar">
           <el-button @click="handleBack" :icon="ArrowLeft">{{ route.query.from === 'myOrders' ? '返回我的订单' : '返回大厅' }}</el-button>
 
           <!-- 待接取状态：非发单人可接单 -->
@@ -142,7 +142,6 @@
             v-if="String(detail.state) === '1' && isGetter && String(detail.userComplete) === '1'"
             type="warning"
             effect="plain"
-            style="margin-left:auto"
           >
             已提交交付结果，等待审核
           </el-tag>
@@ -161,15 +160,15 @@
 
       <!-- 联系发单人弹窗 -->
       <el-dialog v-model="contactVisible" title="联系发单人" width="440px" :close-on-click-modal="false">
-        <div v-if="detail" style="display:flex;align-items:center;gap:14px;padding:8px 4px 16px;border-bottom:1px dashed #ebeef5">
-          <el-avatar :size="48" style="background:#409EFF">{{ detail.senderName ? detail.senderName.charAt(0).toUpperCase() : 'U' }}</el-avatar>
+        <div v-if="detail" class="contact-header">
+          <el-avatar :size="48" class="sender-avatar-lg">{{ detail.senderName ? detail.senderName.charAt(0).toUpperCase() : 'U' }}</el-avatar>
           <div>
-            <div style="font-size:16px;font-weight:600">{{ detail.senderName }}</div>
-            <div style="color:#909399;font-size:13px;margin-top:2px">订单发布人</div>
+            <div class="contact-name">{{ detail.senderName }}</div>
+            <div class="contact-role">订单发布人</div>
           </div>
         </div>
-        <div style="padding:16px 4px 4px">
-          <div style="color:#606266;font-size:13px;margin-bottom:8px">留言内容（可选）：</div>
+        <div class="contact-body">
+          <div class="contact-label">留言内容（可选）：</div>
           <el-input
             v-model="contactMsg"
             type="textarea"
@@ -441,6 +440,150 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.page-container {
+  height: 100vh;
+  background: var(--content-bg);
+}
+
+.page-header {
+  background: rgba(255, 255, 255, .85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, .04);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 12px;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.page-main {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.detail-card {
+  width: 820px;
+}
+
+.card-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sender-avatar {
+  background: var(--gradient-primary);
+  font-size: 12px;
+}
+
+.getter-avatar {
+  background: #67C23A;
+  font-size: 12px;
+}
+
+.text-muted {
+  color: #909399;
+}
+
+.price-text {
+  color: #F56C6C;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.deposit-text {
+  color: #E6A23C;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.status-tag {
+  margin-left: 10px;
+}
+
+.status-info {
+  margin-left: 16px;
+  color: #909399;
+}
+
+.order-content {
+  white-space: pre-wrap;
+  line-height: 1.8;
+  min-height: 80px;
+  color: #303133;
+}
+
+.action-bar {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.contact-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 4px 16px;
+  border-bottom: 1px dashed #ebeef5;
+}
+
+.sender-avatar-lg {
+  background: var(--gradient-primary);
+  font-size: 18px;
+  box-shadow: 0 4px 12px rgba(64, 128, 255, .3);
+}
+
+.contact-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.contact-role {
+  color: #909399;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.contact-body {
+  padding: 16px 4px 4px;
+}
+
+.contact-label {
+  color: #606266;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
 :deep(.el-descriptions__label) {
   width: 110px;
   font-weight: 600;

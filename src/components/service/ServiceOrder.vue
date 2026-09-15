@@ -4,13 +4,13 @@
       <div class="card-header">
         <span>全部订单查询（客服只读）</span>
         <el-button type="primary" link @click="loadList">
-          <el-icon style="margin-right:4px"><Refresh /></el-icon>刷新
+          <el-icon class="btn-icon"><Refresh /></el-icon>刷新
         </el-button>
       </div>
     </template>
 
     <!-- 筛选栏 -->
-    <div style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center">
+    <div class="toolbar">
       <el-radio-group v-model="stateFilter" size="small" @change="loadList">
         <el-radio-button label="all">全部</el-radio-button>
         <el-radio-button label="0">待被接取</el-radio-button>
@@ -22,17 +22,17 @@
         v-model="keyword"
         placeholder="搜索标题/内容/用户名/类型"
         clearable
-        style="width: 280px"
+        class="keyword-input"
         @keyup.enter="loadList"
         @clear="loadList"
       />
       <el-button type="primary" size="small" @click="loadList">
-        <el-icon style="margin-right:4px"><Search /></el-icon>搜索
+        <el-icon class="btn-icon"><Search /></el-icon>搜索
       </el-button>
     </div>
 
     <!-- 订单表格 -->
-    <el-table :data="orderList" border stripe v-loading="loading" style="width: 100%">
+    <el-table :data="orderList" border stripe v-loading="loading" class="full-width">
       <el-table-column label="订单ID" prop="orderId" width="80" align="center" />
       <el-table-column label="标题" prop="title" min-width="160" show-overflow-tooltip />
       <el-table-column label="类型" prop="type" width="90" align="center" />
@@ -87,7 +87,7 @@
           <span v-else>—</span>
         </el-descriptions-item>
         <el-descriptions-item label="订单内容" :span="2">
-          <div style="white-space: pre-wrap; line-height: 1.7">{{ current.content }}</div>
+          <div class="pre-wrap-text">{{ current.content }}</div>
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -166,5 +166,25 @@ onMounted(loadList)
   align-items: center;
   font-size: 16px;
   font-weight: bold;
+}
+.btn-icon {
+  margin-right: 4px;
+}
+.toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.keyword-input {
+  width: 280px;
+}
+.full-width {
+  width: 100%;
+}
+.pre-wrap-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
 }
 </style>

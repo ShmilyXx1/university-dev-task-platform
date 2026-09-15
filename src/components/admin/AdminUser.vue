@@ -5,32 +5,32 @@
         <span>用户管理</span>
         <div>
           <el-button type="primary" size="small" @click="openAddDialog">
-            <el-icon style="margin-right:4px"><Plus /></el-icon>新增用户
+            <el-icon class="btn-icon"><Plus /></el-icon>新增用户
           </el-button>
           <el-button type="primary" link size="small" @click="loadUsers">
-            <el-icon style="margin-right:4px"><Refresh /></el-icon>刷新
+            <el-icon class="btn-icon"><Refresh /></el-icon>刷新
           </el-button>
         </div>
       </div>
     </template>
 
     <!-- 搜索栏 -->
-    <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center">
+    <div class="toolbar">
       <el-input
         v-model="keyword"
         placeholder="用户名 / 昵称 / 手机号 / 邮箱"
         clearable
-        style="width: 280px"
+        class="keyword-input"
         :prefix-icon="Search"
       />
-      <el-select v-model="stateFilter" placeholder="账号状态" clearable style="width: 140px">
+      <el-select v-model="stateFilter" placeholder="账号状态" clearable class="state-select">
         <el-option label="正常" value="0" />
         <el-option label="冻结" value="1" />
       </el-select>
     </div>
 
     <!-- 用户表格 -->
-    <el-table :data="filteredUsers" border stripe v-loading="loading" style="width: 100%">
+    <el-table :data="filteredUsers" border stripe v-loading="loading" class="full-width">
       <el-table-column label="用户ID" prop="userId" width="80" align="center" />
       <el-table-column label="用户名" prop="username" width="120" />
       <el-table-column label="昵称" prop="nickname" width="120">
@@ -56,7 +56,7 @@
             :key="r"
             :type="roleTagType(r)"
             size="small"
-            style="margin-right: 6px"
+            class="role-tag"
           >{{ r }}</el-tag>
           <el-button link type="primary" size="small" @click="openRoleDialog(row)">管理角色</el-button>
         </template>
@@ -80,24 +80,24 @@
 
     <!-- 角色管理弹窗 -->
     <el-dialog v-model="roleDialogVisible" title="角色管理" width="460px" destroy-on-close>
-      <div v-if="currentUser" style="margin-bottom: 16px">
+      <div v-if="currentUser" class="dialog-tip">
         用户：<b>{{ currentUser.username }}</b>（{{ currentUser.phone }}）
       </div>
       <div v-loading="roleLoading">
-        <div style="margin-bottom: 12px">
+        <div class="role-list">
           <el-tag
             v-for="r in currentRoles"
             :key="r"
             :type="roleTagType(r)"
             closable
-            style="margin-right: 8px; margin-bottom: 8px"
+            class="role-list-tag"
             @close="handleRemoveRole(r)"
           >{{ r }}</el-tag>
-          <span v-if="currentRoles.length === 0" style="color: #909399">暂无角色</span>
+          <span v-if="currentRoles.length === 0" class="muted-text">暂无角色</span>
         </div>
-        <el-divider style="margin: 8px 0" />
-        <div style="display: flex; gap: 10px; align-items: center">
-          <el-select v-model="selectedRoleId" placeholder="选择要添加的角色" style="flex: 1">
+        <el-divider class="role-divider" />
+        <div class="role-add-row">
+          <el-select v-model="selectedRoleId" placeholder="选择要添加的角色" class="flex-1">
             <el-option
               v-for="opt in availableRoleOptions"
               :key="opt.roleId"
@@ -131,7 +131,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="默认角色" prop="defaultRoleId">
-              <el-select v-model="addForm.defaultRoleId" style="width: 100%">
+              <el-select v-model="addForm.defaultRoleId" class="full-width">
                 <el-option v-for="r in ROLE_OPTIONS" :key="r.roleId" :label="r.name" :value="r.roleId" />
               </el-select>
             </el-form-item>
@@ -143,7 +143,7 @@
           </el-col>
           <el-col :span="6">
             <el-form-item label="性别">
-              <el-select v-model="addForm.sex" placeholder="请选择" style="width: 100%">
+              <el-select v-model="addForm.sex" placeholder="请选择" class="full-width">
                 <el-option label="男" value="男" />
                 <el-option label="女" value="女" />
               </el-select>
@@ -151,7 +151,7 @@
           </el-col>
           <el-col :span="6">
             <el-form-item label="年龄">
-              <el-input v-model="addForm.age" placeholder="0-120" style="width: 100%" clearable />
+              <el-input v-model="addForm.age" placeholder="0-120" class="full-width" clearable />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -417,5 +417,50 @@ onMounted(loadUsers)
   align-items: center;
   font-size: 16px;
   font-weight: bold;
+}
+.btn-icon {
+  margin-right: 4px;
+}
+.toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.keyword-input {
+  width: 280px;
+}
+.state-select {
+  width: 140px;
+}
+.full-width {
+  width: 100%;
+}
+.role-tag {
+  margin-right: 6px;
+}
+.dialog-tip {
+  margin-bottom: 16px;
+}
+.role-list {
+  margin-bottom: 12px;
+}
+.role-list-tag {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+.muted-text {
+  color: #909399;
+}
+.role-divider {
+  margin: 8px 0;
+}
+.role-add-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.flex-1 {
+  flex: 1;
 }
 </style>

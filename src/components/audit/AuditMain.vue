@@ -2,15 +2,15 @@
   <el-card shadow="hover">
     <template #header>
       <div class="card-header">
-        <span>订单审核</span>
+        <span class="card-title">订单审核</span>
         <el-button type="primary" link @click="loadOrders">
-          <el-icon style="margin-right:4px"><Refresh /></el-icon>刷新
+          <el-icon class="btn-icon"><Refresh /></el-icon>刷新
         </el-button>
       </div>
     </template>
 
     <!-- 搜索筛选 -->
-    <el-row :gutter="16" style="margin-bottom: 16px">
+    <el-row :gutter="16" class="filter-row">
       <el-col :span="6">
         <el-input v-model="searchKeyword" placeholder="输入订单ID搜索" clearable @clear="loadOrders" @keyup.enter="loadOrders" />
       </el-col>
@@ -21,7 +21,7 @@
     </el-row>
 
     <!-- 订单表格 -->
-    <el-table :data="orderList" border stripe v-loading="loading" style="width: 100%">
+    <el-table :data="orderList" border stripe v-loading="loading" class="full-width">
       <el-table-column label="订单ID" prop="orderId" width="80" align="center" />
       <el-table-column label="订单标题" prop="title" min-width="180" show-overflow-tooltip />
       <el-table-column label="类型" prop="type" width="100" align="center">
@@ -33,13 +33,13 @@
       <el-table-column label="接单人" prop="getterName" width="110" align="center" />
       <el-table-column label="赏金" width="100" align="center">
         <template #default="{ row }">
-          <span style="color:#F56C6C;font-weight:600">¥{{ row.senderPrice }}</span>
+          <span class="price-text">¥{{ row.senderPrice }}</span>
         </template>
       </el-table-column>
       <el-table-column label="押金" width="100" align="center">
         <template #default="{ row }">
-          <span v-if="row.deposit" style="color:#E6A23C;font-weight:600">¥{{ row.deposit }}</span>
-          <span v-else style="color:#909399">无</span>
+          <span v-if="row.deposit" class="deposit-text">¥{{ row.deposit }}</span>
+          <span v-else class="text-muted">无</span>
         </template>
       </el-table-column>
       <el-table-column label="交付文件" width="100" align="center">
@@ -47,7 +47,7 @@
           <el-button v-if="row.documentPath" link type="primary" size="small" @click="openDocument(row.documentPath)">
             查看
           </el-button>
-          <span v-else style="color:#909399">无</span>
+          <span v-else class="text-muted">无</span>
         </template>
       </el-table-column>
       <el-table-column label="审核状态" width="100" align="center">
@@ -83,11 +83,11 @@
         <el-descriptions-item label="发布人">{{ currentOrder.senderName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="接单人">{{ currentOrder.getterName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="赏金">
-          <span style="color:#F56C6C;font-weight:600">¥{{ currentOrder.senderPrice }}</span>
+          <span class="price-text">¥{{ currentOrder.senderPrice }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="押金">
-          <span v-if="currentOrder.deposit" style="color:#E6A23C;font-weight:600">¥{{ currentOrder.deposit }}</span>
-          <span v-else style="color:#909399">无</span>
+          <span v-if="currentOrder.deposit" class="deposit-text">¥{{ currentOrder.deposit }}</span>
+          <span v-else class="text-muted">无</span>
         </el-descriptions-item>
         <el-descriptions-item label="接单人完成">
           <el-tag :type="String(currentOrder.userComplete) === '1' ? 'success' : 'info'" size="small">
@@ -109,13 +109,13 @@
         <el-descriptions-item label="截止时间">{{ formatDate(currentOrder.endDatetime) }}</el-descriptions-item>
         <el-descriptions-item label="完成时间">{{ formatDate(currentOrder.completeDatetime) }}</el-descriptions-item>
         <el-descriptions-item label="订单内容" :span="2">
-          <div style="white-space:pre-wrap;line-height:1.8">{{ currentOrder.content || '-' }}</div>
+          <div class="content-text">{{ currentOrder.content || '-' }}</div>
         </el-descriptions-item>
         <el-descriptions-item label="交付文件" :span="2">
           <el-button v-if="currentOrder.documentPath" link type="primary" @click="openDocument(currentOrder.documentPath)">
             {{ currentOrder.documentPath }}
           </el-button>
-          <span v-else style="color:#909399">未上传</span>
+          <span v-else class="text-muted">未上传</span>
         </el-descriptions-item>
       </el-descriptions>
       <template #footer>
@@ -249,7 +249,42 @@ onMounted(loadOrders)
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.card-title {
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 600;
+  color: #303133;
+}
+
+.btn-icon {
+  margin-right: 4px;
+}
+
+.filter-row {
+  margin-bottom: 16px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.price-text {
+  color: #F56C6C;
+  font-weight: 600;
+}
+
+.deposit-text {
+  color: #E6A23C;
+  font-weight: 600;
+}
+
+.text-muted {
+  color: #909399;
+}
+
+.content-text {
+  white-space: pre-wrap;
+  line-height: 1.8;
 }
 </style>

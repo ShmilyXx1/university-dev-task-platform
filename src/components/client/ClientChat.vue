@@ -1,34 +1,34 @@
 <template>
-  <el-container style="height: 100vh; background: #f5f7fa">
-    <el-header style="background: #fff; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #e4e7ed">
+  <el-container class="chat-page">
+    <el-header class="chat-header">
       <el-button @click="goBack" :icon="ArrowLeft" circle />
-      <span style="margin-left: 12px; font-size: 18px; font-weight: bold">在线客服</span>
-      <el-tag v-if="status === 'chatting'" type="success" size="small" style="margin-left: 12px">
+      <span class="header-title">在线客服</span>
+      <el-tag v-if="status === 'chatting'" type="success" size="small" class="header-tag">
         客服：{{ peerName }}
       </el-tag>
-      <el-tag v-else-if="status === 'waiting'" type="warning" size="small" style="margin-left: 12px">排队中</el-tag>
+      <el-tag v-else-if="status === 'waiting'" type="warning" size="small" class="header-tag">排队中</el-tag>
     </el-header>
 
-    <el-main style="padding: 20px; display: flex; justify-content: center">
-      <el-card shadow="hover" style="width: 820px; display: flex; flex-direction: column">
+    <el-main class="chat-main">
+      <el-card shadow="hover" class="chat-card">
         <div class="chat-body">
           <!-- 未排队 -->
           <div v-if="status === 'idle'" class="center-area">
-            <el-icon :size="48" color="#409EFF"><Service /></el-icon>
-            <p style="margin: 16px 0 8px; font-size: 16px; font-weight: 600">有问题？联系在线客服</p>
-            <p style="color: #909399; font-size: 13px; margin-bottom: 20px">咨询人数较多时需排队等待，请耐心等候</p>
+            <el-icon :size="48" color="#4080FF"><Service /></el-icon>
+            <p class="center-title">有问题？联系在线客服</p>
+            <p class="center-desc">咨询人数较多时需排队等待，请耐心等候</p>
             <el-button type="primary" size="large" :loading="connecting" @click="applyQueue">
-              <el-icon style="margin-right: 6px"><ChatDotRound /></el-icon>联系客服
+              <el-icon class="btn-icon"><ChatDotRound /></el-icon>联系客服
             </el-button>
           </div>
 
           <!-- 排队中 -->
           <div v-else-if="status === 'waiting'" class="center-area">
             <el-icon :size="48" color="#E6A23C" class="is-loading"><Loading /></el-icon>
-            <p style="margin: 16px 0 8px; font-size: 16px; font-weight: 600">正在为您排队接入客服…</p>
-            <p style="color: #E6A23C; font-size: 15px; margin-bottom: 20px">
-              您前面还有 <b style="font-size: 20px">{{ position - 1 <= 0 ? 0 : position - 1 }}</b> 人
-              <span style="color:#909399;font-size:13px">（您是第 {{ position }} 位）</span>
+            <p class="center-title">正在为您排队接入客服…</p>
+            <p class="waiting-desc">
+              您前面还有 <b class="waiting-count">{{ position - 1 <= 0 ? 0 : position - 1 }}</b> 人
+              <span class="waiting-pos">（您是第 {{ position }} 位）</span>
             </p>
             <el-button @click="cancelQueue">取消排队</el-button>
           </div>
@@ -36,7 +36,7 @@
           <!-- 聊天中 -->
           <template v-else>
             <div class="msg-box" ref="msgBoxRef">
-              <div v-if="msgList.length === 0" style="text-align:center; color:#999; margin-top: 60px">
+              <div v-if="msgList.length === 0" class="empty-tip">
                 已接入客服，请描述您的问题
               </div>
               <div v-for="(msg, idx) in msgList" :key="idx" class="msg-row" :class="msg.from">
@@ -56,7 +56,7 @@
               />
               <el-button type="primary" :disabled="!sendContent.trim()" @click="sendMessage">发送</el-button>
             </div>
-            <div style="text-align: right; padding: 0 4px 8px">
+            <div class="end-chat-row">
               <el-button type="danger" link size="small" @click="endChat">结束会话</el-button>
             </div>
           </template>
@@ -73,10 +73,19 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Service, ChatDotRound, Loading } from '@element-plus/icons-vue'
 import { useUserStore } from '../../stores/user'
 import { connectChat, sendChat, onChat, offChat, closeChat } from '../../utils/ws'
-import { getChatHistory } from '../../api/chat'
+import { getChatHistory, markChatRead } from '../../api/chat'
+import { useChatStore } from '../../stores/chat'
 
 const router = useRouter()
 const userStore = useUserStore()
+const chatStore = useChatStore()
+
+// 会话结束后清掉对方发来的未读消息通知
+const clearPeerUnread = async (pid) => {
+  if (!pid) return
+  try { await markChatRead({ fromUserId: pid }) } catch (e) {}
+  chatStore.fetchUnread()
+}
 
 const connecting = ref(false)
 const status = ref('idle')   // idle | waiting | chatting
@@ -121,11 +130,13 @@ const cancelQueue = () => {
 // 结束会话
 const endChat = () => {
   ElMessageBox.confirm('确定结束与客服的会话吗？', '提示', { type: 'warning' })
-    .then(() => {
+    .then(async () => {
+      const pid = peerId.value
       sendChat('user_cancel')
       status.value = 'idle'
       msgList.value = []
       peerId.value = 0
+      await clearPeerUnread(pid)
     }).catch(() => {})
 }
 
@@ -195,14 +206,18 @@ const handlers = {
     msgList.value.push({ from: msg.from, content: msg.content, time: msg.time || now() })
     scrollBottom()
   },
-  service_leave: (msg) => {
+  service_leave: async (msg) => {
     ElMessage.info(msg.content || '客服已结束会话')
+    const pid = peerId.value
     status.value = 'idle'
     msgList.value = []
     peerId.value = 0
+    await clearPeerUnread(pid)
   },
-  user_cancel_success: () => {
+  user_cancel_success: async () => {
+    const pid = peerId.value
     status.value = 'idle'
+    await clearPeerUnread(pid)
   }
 }
 
@@ -222,6 +237,35 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.chat-page {
+  height: 100vh;
+  background: var(--content-bg);
+}
+.chat-header {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+.header-title {
+  margin-left: 12px;
+  font-size: 18px;
+  font-weight: bold;
+}
+.header-tag {
+  margin-left: 12px;
+}
+.chat-main {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+.chat-card {
+  width: 820px;
+  display: flex;
+  flex-direction: column;
+}
 .chat-body {
   min-height: 60vh;
   display: flex;
@@ -235,19 +279,50 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 40px 0;
 }
+.center-title {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.center-desc {
+  color: #909399;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.btn-icon {
+  margin-right: 6px;
+}
+.waiting-desc {
+  color: #E6A23C;
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+.waiting-count {
+  font-size: 20px;
+}
+.waiting-pos {
+  color: #909399;
+  font-size: 13px;
+}
+.empty-tip {
+  text-align: center;
+  color: #999;
+  margin-top: 60px;
+}
 .msg-box {
   flex: 1;
   min-height: 380px;
   max-height: 55vh;
   overflow-y: auto;
   padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
+  background: var(--content-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 .msg-row {
   margin-bottom: 16px;
   max-width: 70%;
+  word-wrap: break-word;
 }
 .msg-row.user {
   margin-left: auto;
@@ -259,23 +334,27 @@ onBeforeUnmount(() => {
 .msg-content {
   display: inline-block;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   line-height: 1.6;
   text-align: left;
   white-space: pre-wrap;
   word-break: break-word;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 .msg-row.user .msg-content {
-  background: #409EFF;
+  background: var(--gradient-primary);
   color: #fff;
+  box-shadow: 0 6px 14px -6px rgba(64, 128, 255, .55);
 }
 .msg-row.service .msg-content {
   background: #fff;
-  border: 1px solid #e4e7ed;
+  color: #303133;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, .05);
 }
 .msg-time {
   font-size: 11px;
-  color: #aaa;
+  color: #999;
   margin-top: 4px;
 }
 .send-area {
@@ -283,5 +362,9 @@ onBeforeUnmount(() => {
   gap: 10px;
   align-items: flex-end;
   padding: 12px 0 0;
+}
+.end-chat-row {
+  text-align: right;
+  padding: 0 4px 8px;
 }
 </style>

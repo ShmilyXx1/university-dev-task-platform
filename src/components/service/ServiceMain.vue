@@ -1,10 +1,10 @@
 <template>
-  <el-card shadow="hover" style="height: 86vh; display: flex; flex-direction: column;">
+  <el-card shadow="hover" class="service-card">
     <template #header>
       <div class="card-header">
-        <span>客服工作台</span>
-        <div>
-          <el-tag type="warning" size="small" style="margin-right: 10px">
+        <span class="card-title">客服工作台</span>
+        <div class="header-tags">
+          <el-tag type="warning" size="small" class="tag-mr">
             排队等待：{{ waitCount }} 人
           </el-tag>
           <el-tag :type="status === 'chatting' ? 'success' : 'info'" size="small">
@@ -14,23 +14,23 @@
       </div>
     </template>
 
-    <div style="flex: 1; display: flex; flex-direction: column;">
+    <div class="service-body">
       <!-- 空闲状态 -->
       <div v-if="status === 'idle'" class="idle-area">
         <el-icon :size="48" color="#67C23A"><Service /></el-icon>
-        <p style="margin: 16px 0 8px; font-size: 16px; font-weight: 600">您已上线，等待用户咨询</p>
-        <p style="color: #909399; font-size: 13px; margin-bottom: 20px">
-          有用户排队时会自动接入；当前等待 <b style="color:#E6A23C">{{ waitCount }}</b> 人
+        <p class="idle-title">您已上线，等待用户咨询</p>
+        <p class="idle-desc">
+          有用户排队时会自动接入；当前等待 <b class="highlight">{{ waitCount }}</b> 人
         </p>
         <el-button type="primary" size="large" @click="pullNext">
-          <el-icon style="margin-right: 6px"><Refresh /></el-icon>手动接入下一位
+          <el-icon class="btn-icon"><Refresh /></el-icon>手动接入下一位
         </el-button>
       </div>
 
       <!-- 服务中 -->
       <template v-else>
         <div class="msg-box" ref="msgBoxRef">
-          <div v-if="msgList.length === 0" style="text-align:center; color:#999; margin-top: 60px">
+          <div v-if="msgList.length === 0" class="empty-hint">
             用户 {{ peerName }} 已接入，请主动问候
           </div>
           <div v-for="(msg, idx) in msgList" :key="idx" class="msg-row" :class="msg.from">
@@ -50,7 +50,7 @@
           />
           <el-button type="primary" :disabled="!sendContent.trim()" @click="sendMessage">发送</el-button>
         </div>
-        <div style="text-align: right; padding: 8px 4px 0">
+        <div class="end-chat-row">
           <el-button type="warning" size="small" @click="finishChat">结束会话并接入下一位</el-button>
         </div>
       </template>
@@ -64,11 +64,20 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Service, Refresh } from '@element-plus/icons-vue'
 import { useUserStore } from '../../stores/user'
 import { connectChat, sendChat, onChat, offChat } from '../../utils/ws'
-import { getChatHistory } from '../../api/chat'
+import { getChatHistory, markChatRead } from '../../api/chat'
+import { useChatStore } from '../../stores/chat'
 
 const userStore = useUserStore()
+const chatStore = useChatStore()
 
-const status = ref('idle')      // idle | chatting
+// 会话结束后清掉对方发来的未读消息通知
+const clearPeerUnread = async (pid) => {
+  if (!pid) return
+  try { await markChatRead({ fromUserId: pid }) } catch (e) {}
+  chatStore.fetchUnread()
+}
+
+const status = ref('idle')      // idle | talking
 const waitCount = ref(0)
 const peerId = ref(0)
 const peerName = ref('')
@@ -96,8 +105,10 @@ const pullNext = () => {
 // 结束会话
 const finishChat = () => {
   ElMessageBox.confirm('结束当前会话？结束后将自动接入下一位排队用户。', '提示', { type: 'warning' })
-    .then(() => {
+    .then(async () => {
+      const pid = peerId.value
       sendChat('service_finish')
+      await clearPeerUnread(pid)
     }).catch(() => {})
 }
 
@@ -169,16 +180,20 @@ const handlers = {
     msgList.value.push({ from: 'user', content: msg.content, time: msg.time || now() })
     scrollBottom()
   },
-  user_leave: (msg) => {
+  user_leave: async (msg) => {
     ElMessage.info(msg.content || '用户已离开')
+    const pid = peerId.value
     status.value = 'idle'
     msgList.value = []
     peerId.value = 0
+    await clearPeerUnread(pid)
   },
-  service_idle: () => {
+  service_idle: async () => {
+    const pid = peerId.value
     status.value = 'idle'
     msgList.value = []
     peerId.value = 0
+    await clearPeerUnread(pid)
   }
 }
 
@@ -196,13 +211,43 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.service-card {
+  height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 16px;
-  font-weight: bold;
 }
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.header-tags {
+  display: flex;
+  align-items: center;
+}
+
+.tag-mr {
+  margin-right: 10px;
+}
+
+.btn-icon {
+  margin-right: 6px;
+}
+
+.service-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .idle-area {
   flex: 1;
   display: flex;
@@ -210,15 +255,39 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
 }
+
+.idle-title {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.idle-desc {
+  color: #909399;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.highlight {
+  color: #E6A23C;
+}
+
+.empty-hint {
+  text-align: center;
+  color: #999;
+  margin-top: 60px;
+}
+
 .msg-box {
   flex: 1;
   min-height: 380px;
   max-height: 60vh;
   overflow-y: auto;
   padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
+  background: var(--content-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 .msg-row {
   margin-bottom: 16px;
@@ -234,23 +303,27 @@ onBeforeUnmount(() => {
 .msg-content {
   display: inline-block;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   line-height: 1.6;
   text-align: left;
   white-space: pre-wrap;
   word-break: break-word;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 .msg-row.user .msg-content {
   background: #fff;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--border-light);
+  color: #303133;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, .05);
 }
 .msg-row.service .msg-content {
-  background: #409EFF;
+  background: var(--gradient-primary);
   color: #fff;
+  box-shadow: 0 6px 14px -6px rgba(64, 128, 255, .55);
 }
 .msg-time {
   font-size: 11px;
-  color: #aaa;
+  color: #999;
   margin-top: 4px;
 }
 .send-area {
@@ -258,5 +331,9 @@ onBeforeUnmount(() => {
   gap: 10px;
   align-items: flex-end;
   padding: 12px 0 0;
+}
+.end-chat-row {
+  text-align: right;
+  padding: 8px 4px 0;
 }
 </style>

@@ -4,7 +4,7 @@
       <div class="result-icon">
         <el-icon v-if="status === 'success'" color="#67C23A" :size="64"><CircleCheckFilled /></el-icon>
         <el-icon v-else-if="status === 'fail'" color="#F56C6C" :size="64"><CircleCloseFilled /></el-icon>
-        <el-icon v-else color="#409EFF" :size="64" class="rotating"><Loading /></el-icon>
+        <el-icon v-else color="#4080FF" :size="64" class="rotating"><Loading /></el-icon>
       </div>
 
       <h2 class="result-title">
@@ -109,19 +109,31 @@ onUnmounted(clearTimer)
 <style scoped>
 .pay-result-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--content-bg);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .result-card {
-  width: 460px;
-  border-radius: 16px;
+  max-width: 500px;
+  margin: 40px auto;
+  width: 100%;
+  border-radius: var(--radius);
   padding: 40px 30px;
   text-align: center;
+  box-shadow: var(--shadow);
 }
 .result-icon {
-  margin-bottom: 20px;
+  width: 120px;
+  height: 120px;
+  font-size: 64px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f2f6ff, #f8fafc);
+  box-shadow: inset 0 0 0 1px #e6edfa, 0 14px 32px -14px rgba(64, 128, 255, .4);
 }
 .rotating {
   animation: rotate 1.2s linear infinite;

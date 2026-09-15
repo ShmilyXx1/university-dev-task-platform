@@ -5,15 +5,15 @@
       <el-card class="header-card" shadow="never">
         <div class="header-inner">
           <el-button type="primary" text @click="goBack">
-            <el-icon style="margin-right:4px"><ArrowLeft /></el-icon>返回大厅
+            <el-icon class="icon-gap"><ArrowLeft /></el-icon>返回大厅
           </el-button>
           <h2 class="page-title">个人中心</h2>
           <div>
             <el-button @click="goMyOrders">
-              <el-icon style="margin-right:4px"><List /></el-icon>我的订单
+              <el-icon class="icon-gap"><List /></el-icon>我的订单
             </el-button>
-            <el-button type="primary" plain @click="goResetPwd" style="margin-left:8px">
-              <el-icon style="margin-right:4px"><Lock /></el-icon>修改密码
+            <el-button type="primary" plain @click="goResetPwd" class="ml-8">
+              <el-icon class="icon-gap"><Lock /></el-icon>修改密码
             </el-button>
           </div>
         </div>
@@ -73,7 +73,7 @@
               <el-row :gutter="10">
                 <el-col :span="12">
                   <el-form-item label="性别">
-                    <el-select v-model="form.sex" :disabled="!editing" placeholder="请选择性别" style="width: 100%">
+                    <el-select v-model="form.sex" :disabled="!editing" placeholder="请选择性别" class="full-width">
                       <el-option label="男" value="男" />
                       <el-option label="女" value="女" />
                     </el-select>
@@ -81,7 +81,7 @@
                 </el-col>
                 <el-col :span="12">
                   <el-form-item label="年龄">
-                    <el-input-number v-model="form.age" :min="0" :max="150" :disabled="!editing" controls-position="right" style="width: 100%" />
+                    <el-input-number v-model="form.age" :min="0" :max="150" :disabled="!editing" controls-position="right" class="full-width" />
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -100,11 +100,11 @@
 
               <el-form-item>
                 <el-button v-if="!editing" type="primary" @click="startEdit">
-                  <el-icon style="margin-right:4px"><Edit /></el-icon>修改信息
+                  <el-icon class="icon-gap"><Edit /></el-icon>修改信息
                 </el-button>
                 <template v-else>
                   <el-button type="primary" :loading="saving" @click="doSave">
-                    <el-icon style="margin-right:4px"><Check /></el-icon>保存修改
+                    <el-icon class="icon-gap"><Check /></el-icon>保存修改
                   </el-button>
                   <el-button @click="cancelEdit">取消</el-button>
                 </template>
@@ -270,7 +270,7 @@ onMounted(() => {
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--content-bg);
 }
 
 .profile-header {
@@ -287,8 +287,11 @@ onMounted(() => {
 .page-title {
   margin: 0;
   font-size: 20px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .profile-body {
@@ -300,10 +303,13 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 .avatar-wrapper {
+  margin: -20px -20px 0;
+  padding: 30px 20px 26px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 0 20px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .avatar-uploader {
   cursor: pointer;
@@ -314,12 +320,17 @@ onMounted(() => {
   border-radius: 50%;
   object-fit: cover;
   display: block;
-  border: 2px solid #f0f2f5;
+  border: 3px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 8px 20px rgba(8, 22, 41, .22);
+}
+.avatar-wrapper :deep(.el-avatar) {
+  border: 3px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 8px 20px rgba(8, 22, 41, .22);
 }
 .upload-hint {
-  color: #909399;
+  color: rgba(255, 255, 255, .85);
   font-size: 12px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 .user-summary {
   text-align: center;
@@ -334,8 +345,12 @@ onMounted(() => {
 .summary-role {
   display: inline-block;
   margin: 0 auto 4px;
-  color: #409EFF;
-  font-size: 13px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--primary-light);
+  padding: 2px 12px;
+  border-radius: 999px;
 }
 .summary-phone {
   color: #909399;
@@ -361,5 +376,14 @@ onMounted(() => {
 }
 :deep(.el-form-item) {
   margin-bottom: 20px;
+}
+.icon-gap {
+  margin-right: 4px;
+}
+.ml-8 {
+  margin-left: 8px;
+}
+.full-width {
+  width: 100%;
 }
 </style>

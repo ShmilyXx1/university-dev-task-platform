@@ -1,14 +1,14 @@
 <template>
-  <el-container style="height: 100vh; border: 1px solid #eee">
+  <el-container class="layout-container">
     <!-- 侧边栏 -->
-    <el-aside width="220px" style="background-color: #001529">
+    <el-aside class="layout-aside" width="220px">
       <div class="logo-box">后台管理系统</div>
       <el-menu
         :default-active="$route.path"
         router
-        background-color="#001529"
-        text-color="#fff"
-        active-text-color="#409EFF"
+        background-color="transparent"
+        text-color="rgba(255,255,255,.72)"
+        active-text-color="#ffffff"
       >
         <el-menu-item index="/adminMain">
           <template #icon><House /></template>
@@ -27,14 +27,16 @@
 
     <el-container>
       <!-- 顶部导航栏 -->
-      <el-header style="background: #fff; display: flex; justify-content: flex-end; align-items: center; padding: 0 20px; border-bottom: 1px solid #e4e7ed; gap: 16px">
-        <NotificationBell />
-        <span>{{ userStore.adminName }}</span>
-        <el-button type="danger" icon="Logout" @click="handleLogout">退出登录</el-button>
+      <el-header class="layout-header">
+        <div class="header-right">
+          <NotificationBell />
+          <span class="header-username">{{ userStore.adminName }}</span>
+          <el-button type="danger" icon="Logout" @click="handleLogout">退出登录</el-button>
+        </div>
       </el-header>
 
       <!-- 页面内容区域 -->
-      <el-main style="background: #f5f7fa; padding: 20px">
+      <el-main class="layout-main">
         <router-view />
       </el-main>
     </el-container>
@@ -56,12 +58,65 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
+.layout-container {
+  height: 100vh;
+}
+
+.layout-aside {
+  background: var(--sidebar-gradient);
+  box-shadow: 2px 0 14px rgba(8, 22, 41, .22);
+  transition: width 0.3s;
+}
+
 .logo-box {
   height: 60px;
-  line-height: 60px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
   color: #fff;
-  font-size: 18px;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+.logo-box::before {
+  content: '';
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--gradient-primary);
+  box-shadow: 0 4px 12px rgba(64, 128, 255, .5);
+}
+
+.layout-header {
+  background: rgba(255, 255, 255, .85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, .04);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-username {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.layout-main {
+  background: var(--content-bg);
+  padding: 20px;
 }
 </style>

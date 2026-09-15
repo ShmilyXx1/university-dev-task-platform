@@ -4,13 +4,13 @@
       <div class="card-header">
         <span>用户问题反馈处理</span>
         <el-button type="primary" link @click="loadList">
-          <el-icon style="margin-right:4px"><Refresh /></el-icon>刷新
+          <el-icon class="btn-icon"><Refresh /></el-icon>刷新
         </el-button>
       </div>
     </template>
 
     <!-- 状态筛选 -->
-    <el-radio-group v-model="filter" style="margin-bottom: 16px" @change="loadList">
+    <el-radio-group v-model="filter" class="filter-bar" @change="loadList">
       <el-radio-button label="all">全部</el-radio-button>
       <el-radio-button label="pending">待回复</el-radio-button>
       <el-radio-button label="replied">已回复待确认</el-radio-button>
@@ -18,7 +18,7 @@
     </el-radio-group>
 
     <!-- 反馈表格 -->
-    <el-table :data="filteredList" border stripe v-loading="loading" style="width: 100%">
+    <el-table :data="filteredList" border stripe v-loading="loading" class="full-width">
       <el-table-column label="ID" prop="feedbackId" width="70" align="center" />
       <el-table-column label="用户" prop="username" width="120" align="center" />
       <el-table-column label="反馈内容" prop="content" min-width="220" show-overflow-tooltip />
@@ -43,20 +43,20 @@
 
     <!-- 回复弹窗 -->
     <el-dialog v-model="dialogVisible" :title="current ? `回复反馈 #${current.feedbackId}` : '回复反馈'" width="600px" destroy-on-close>
-      <div v-if="current" style="margin-bottom: 16px">
-        <div style="font-weight:600;margin-bottom:6px">
+      <div v-if="current" class="dialog-tip">
+        <div class="dialog-subtitle">
           <el-tag size="small" type="info">{{ current.username }}</el-tag>
-          <el-tag :type="statusTag(current).type" size="small" style="margin-left:8px">{{ statusTag(current).text }}</el-tag>
+          <el-tag :type="statusTag(current).type" size="small" class="tag-ml">{{ statusTag(current).text }}</el-tag>
         </div>
         <div class="user-content">
-          <el-icon color="#409EFF"><ChatDotRound /></el-icon>
-          <span style="white-space:pre-wrap;line-height:1.7">{{ current.content }}</span>
+          <el-icon color="#4080FF"><ChatDotRound /></el-icon>
+          <span class="pre-wrap-text">{{ current.content }}</span>
         </div>
         <div class="fb-time">提交于 {{ formatDate(current.sendDatetime) }}</div>
 
         <div v-if="current.reply" class="old-reply">
-          <div style="font-weight:600;color:#67C23A;margin-bottom:4px">历史回复</div>
-          <div style="white-space:pre-wrap;line-height:1.7">{{ current.reply }}</div>
+          <div class="reply-title">历史回复</div>
+          <div class="pre-wrap-text">{{ current.reply }}</div>
           <div class="fb-time">回复于 {{ formatDate(current.replyDatetime) }}</div>
         </div>
       </div>
@@ -165,6 +165,34 @@ onMounted(loadList)
   align-items: center;
   font-size: 16px;
   font-weight: bold;
+}
+.btn-icon {
+  margin-right: 4px;
+}
+.filter-bar {
+  margin-bottom: 16px;
+}
+.full-width {
+  width: 100%;
+}
+.dialog-tip {
+  margin-bottom: 16px;
+}
+.dialog-subtitle {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.tag-ml {
+  margin-left: 8px;
+}
+.pre-wrap-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+.reply-title {
+  font-weight: 600;
+  color: #67C23A;
+  margin-bottom: 4px;
 }
 .user-content {
   display: flex;

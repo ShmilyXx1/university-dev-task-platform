@@ -1,11 +1,11 @@
 <template>
-  <router-view />
+  <router-view v-slot="{ Component }">
+    <transition name="fade-page" mode="out-in">
+      <component :is="Component" />
+    </transition>
+  </router-view>
 </template>
 
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* 全局样式已迁移至 style.css */
 </style>

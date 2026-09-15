@@ -1,17 +1,17 @@
 <template>
-  <el-container style="height: 100vh; background: #f5f7fa">
-    <el-header style="background: #fff; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #e4e7ed">
+  <el-container class="page-container">
+    <el-header class="page-header">
       <el-button @click="handleBack" :icon="ArrowLeft" circle />
-      <span style="margin-left: 12px; font-size: 18px; font-weight: bold">发布订单</span>
+      <span class="page-header-title">发布订单</span>
     </el-header>
 
-    <el-main style="padding: 20px; display: flex; justify-content: center">
-      <el-card style="width: 680px" shadow="hover">
+    <el-main class="page-main">
+      <el-card class="form-card" shadow="hover">
         <template #header>
-          <span style="font-size: 16px; font-weight: 600">填写订单信息</span>
+          <span class="card-title">填写订单信息</span>
         </template>
 
-        <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" size="large">
           <el-form-item label="订单标题" prop="title">
             <el-input v-model="form.title" placeholder="请输入订单标题" maxlength="50" show-word-limit />
           </el-form-item>
@@ -21,7 +21,7 @@
           </el-form-item>
 
           <el-form-item label="订单类型" prop="type">
-            <el-select v-model="form.type" placeholder="请选择订单类型" style="width: 100%">
+            <el-select v-model="form.type" placeholder="请选择订单类型" class="full-width">
               <el-option label="编程" value="编程" />
               <el-option label="学习" value="学习" />
               <el-option label="设计" value="设计" />
@@ -31,25 +31,25 @@
           </el-form-item>
 
           <el-form-item label="发布方报价" prop="senderPrice">
-            <el-input-number v-model="form.senderPrice" :min="0" :max="99999" :precision="2" :step="10" controls-position="right" style="width: 200px" />
-            <span style="margin-left: 8px; color: #999">元</span>
+            <el-input-number v-model="form.senderPrice" :min="0" :max="99999" :precision="2" :step="10" controls-position="right" class="price-input" />
+            <span class="unit-text">元</span>
           </el-form-item>
 
           <el-form-item label="押金">
             <el-checkbox v-model="form.hasDeposit">需要押金</el-checkbox>
             <template v-if="form.hasDeposit">
-              <el-input-number v-model="form.deposit" :min="0" :max="99999" :precision="2" :step="10" controls-position="right" style="width: 200px; margin-left: 12px" />
-              <span style="margin-left: 8px; color: #999">元</span>
+              <el-input-number v-model="form.deposit" :min="0" :max="99999" :precision="2" :step="10" controls-position="right" class="price-input deposit-input" />
+              <span class="unit-text">元</span>
             </template>
           </el-form-item>
 
           <el-form-item label="截止时间" prop="endDatetime">
-            <el-date-picker v-model="form.endDatetime" type="datetime" placeholder="请选择截止时间" format="YYYY-MM-DD HH:mm" value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+            <el-date-picker v-model="form.endDatetime" type="datetime" placeholder="请选择截止时间" format="YYYY-MM-DD HH:mm" value-format="YYYY-MM-DD HH:mm:ss" class="full-width" />
           </el-form-item>
 
           <el-form-item>
             <el-button type="primary" @click="handleSubmit" :loading="submitting">发布订单</el-button>
-            <el-button @click="handleReset" style="margin-left: 12px">重置</el-button>
+            <el-button @click="handleReset" class="reset-btn">重置</el-button>
           </el-form-item>
         </el-form>
       </el-card>
@@ -158,3 +158,62 @@ const handleSubmit = async () => {
   }
 }
 </script>
+
+<style scoped>
+.page-container {
+  height: 100vh;
+  background: var(--content-bg);
+}
+.page-header {
+  background: rgba(255, 255, 255, .85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, .04);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.page-header-title {
+  margin-left: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.page-main {
+  background: var(--content-bg);
+  padding: 20px;
+}
+.form-card {
+  max-width: 680px;
+  margin: 0 auto;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.full-width {
+  width: 100%;
+}
+.price-input {
+  width: 200px;
+}
+.deposit-input {
+  margin-left: 12px;
+}
+.unit-text {
+  margin-left: 8px;
+  color: #909399;
+}
+.reset-btn {
+  margin-left: 12px;
+}
+</style>

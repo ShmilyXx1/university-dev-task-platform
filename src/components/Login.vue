@@ -93,7 +93,11 @@ const login = async () => {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e6edff 100%);
+  background:
+    radial-gradient(900px 480px at 12% -8%, rgba(64, 128, 255, .22), transparent 60%),
+    radial-gradient(760px 420px at 105% 12%, rgba(54, 207, 201, .18), transparent 55%),
+    radial-gradient(700px 500px at 50% 120%, rgba(64, 128, 255, .14), transparent 60%),
+    linear-gradient(135deg, #eef3ff 0%, #e3eeff 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -166,7 +170,7 @@ const login = async () => {
   text-align: right;
 }
 .forget-link {
-  color: #409EFF;
+  color: var(--primary);
   font-size: 14px;
   text-decoration: none;
 }

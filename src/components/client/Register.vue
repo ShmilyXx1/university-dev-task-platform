@@ -9,7 +9,7 @@
 
     <el-card class="login-card" shadow="hover">
       <div class="card-header">
-        <el-icon color="#409EFF" size="42"><Key /></el-icon>
+        <el-icon class="login-icon" color="#409EFF" size="42"><Key /></el-icon>
         <h1 class="login-title">注册</h1>
       </div>
 
@@ -114,7 +114,11 @@ onUnmounted(() => {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e6edff 100%);
+  background:
+    radial-gradient(900px 480px at 12% -8%, rgba(64, 128, 255, .22), transparent 60%),
+    radial-gradient(760px 420px at 105% 12%, rgba(54, 207, 201, .18), transparent 55%),
+    radial-gradient(700px 500px at 50% 120%, rgba(64, 128, 255, .14), transparent 60%),
+    linear-gradient(135deg, #eef3ff 0%, #e3eeff 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -132,7 +136,7 @@ onUnmounted(() => {
   color: #f56c6c;
   border: 1px solid #fbc4c4;
   padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -152,7 +156,7 @@ onUnmounted(() => {
   width: 420px;
   border-radius: 16px;
   padding: 35px 30px;
-  background-color: #ffffff;
+  background: #fff;
 }
 
 .card-header {
@@ -192,14 +196,14 @@ onUnmounted(() => {
   width: 100%;
   height: 46px;
   font-size: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 .link-row {
   text-align: right;
 }
 .forget-link {
-  color: #409EFF;
+  color: var(--primary);
   font-size: 14px;
   text-decoration: none;
 }

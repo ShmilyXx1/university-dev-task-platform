@@ -1,16 +1,16 @@
 <template>
-  <el-container style="height: 100vh; background: #f5f7fa">
-    <el-header style="background: #fff; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #e4e7ed">
+  <el-container class="page-container">
+    <el-header class="page-header">
       <el-button @click="goBack" :icon="ArrowLeft" circle />
-      <span style="margin-left: 12px; font-size: 18px; font-weight: bold">问题反馈</span>
+      <span class="page-header-title">问题反馈</span>
     </el-header>
 
-    <el-main style="padding: 20px; display: flex; justify-content: center">
-      <div style="width: 820px">
+    <el-main class="page-main">
+      <div class="feedback-wrap">
         <!-- 提交反馈 -->
-        <el-card shadow="hover" style="margin-bottom: 20px">
+        <el-card shadow="hover" class="feedback-card">
           <template #header>
-            <span style="font-weight: 600">提交新反馈</span>
+            <span class="card-title">提交新反馈</span>
           </template>
           <el-input
             v-model="newContent"
@@ -20,7 +20,7 @@
             show-word-limit
             placeholder="请描述您遇到的问题，客服会尽快回复处理"
           />
-          <div style="margin-top: 12px; text-align: right">
+          <div class="submit-row">
             <el-button type="primary" :loading="submitting" @click="submitFeedback">提交反馈</el-button>
           </div>
         </el-card>
@@ -28,8 +28,8 @@
         <!-- 反馈列表 -->
         <el-card shadow="hover" v-loading="loading">
           <template #header>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-weight: 600">我的反馈记录</span>
+            <div class="card-header-inner">
+              <span class="card-title">我的反馈记录</span>
               <el-radio-group v-model="filterSolve" size="small" @change="loadList">
                 <el-radio-button label="">全部</el-radio-button>
                 <el-radio-button label="0">处理中</el-radio-button>
@@ -44,9 +44,9 @@
             <!-- 用户反馈内容 -->
             <div class="fb-row">
               <div class="fb-content">
-                <el-icon color="#409EFF"><ChatDotRound /></el-icon>
-                <div style="flex:1">
-                  <div style="white-space:pre-wrap;line-height:1.7">{{ item.content }}</div>
+                <el-icon color="#4080FF"><ChatDotRound /></el-icon>
+                <div class="fb-content-body">
+                  <div class="fb-text">{{ item.content }}</div>
                   <div class="fb-time">提交于 {{ formatDate(item.sendDatetime) }}</div>
                 </div>
                 <el-tag :type="statusTag(item).type" size="small">{{ statusTag(item).text }}</el-tag>
@@ -56,9 +56,9 @@
             <!-- 客服回复 -->
             <div v-if="item.reply" class="reply-box">
               <el-icon color="#67C23A"><Service /></el-icon>
-              <div style="flex:1">
-                <div style="font-weight:600;color:#67C23A;margin-bottom:4px">客服回复</div>
-                <div style="white-space:pre-wrap;line-height:1.7">{{ item.reply }}</div>
+              <div class="fb-content-body">
+                <div class="reply-title">客服回复</div>
+                <div class="fb-text">{{ item.reply }}</div>
                 <div class="fb-time">回复于 {{ formatDate(item.replyDatetime) }}</div>
               </div>
             </div>
@@ -67,14 +67,14 @@
             <div class="fb-actions">
               <template v-if="item.reply && String(item.solve) === '0'">
                 <el-button type="success" size="small" @click="markSolve(item, '1')">
-                  <el-icon style="margin-right:4px"><Check /></el-icon>已解决
+                  <el-icon class="btn-icon"><Check /></el-icon>已解决
                 </el-button>
                 <el-button type="warning" size="small" @click="markSolve(item, '0')">
-                  <el-icon style="margin-right:4px"><RefreshLeft /></el-icon>未解决，继续反馈
+                  <el-icon class="btn-icon"><RefreshLeft /></el-icon>未解决，继续反馈
                 </el-button>
               </template>
               <el-button type="danger" size="small" link @click="removeFeedback(item)">
-                <el-icon style="margin-right:4px"><Delete /></el-icon>删除
+                <el-icon class="btn-icon"><Delete /></el-icon>删除
               </el-button>
             </div>
           </div>
@@ -213,5 +213,72 @@ onMounted(loadList)
   margin: 10px 0 0 30px;
   display: flex;
   gap: 8px;
+}
+
+.page-container {
+  height: 100vh;
+  background: var(--content-bg);
+}
+.page-header {
+  background: rgba(255, 255, 255, .85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, .04);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.page-header-title {
+  margin-left: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.page-main {
+  background: var(--content-bg);
+  padding: 20px;
+}
+.feedback-wrap {
+  width: 820px;
+  margin: 0 auto;
+}
+.feedback-card {
+  margin-bottom: 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-weight: 600;
+}
+.submit-row {
+  margin-top: 12px;
+  text-align: right;
+}
+.card-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.fb-content-body {
+  flex: 1;
+}
+.fb-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+.reply-title {
+  font-weight: 600;
+  color: #67C23A;
+  margin-bottom: 4px;
+}
+.btn-icon {
+  margin-right: 4px;
 }
 </style>
