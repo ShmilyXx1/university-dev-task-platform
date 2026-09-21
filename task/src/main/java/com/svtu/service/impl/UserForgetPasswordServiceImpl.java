@@ -45,7 +45,7 @@ public class UserForgetPasswordServiceImpl implements UserForgetPasswordService 
         //存入redis中，时间为1分钟过期
         redisUtil.set(phone,code,60);
         System.out.println(code);
-        return Result.success(code);
+        return Result.success();
     }
 
     //2.验证码是否匹配

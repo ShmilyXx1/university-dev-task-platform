@@ -53,7 +53,7 @@ public class UserRegisterServiceImpl implements UserRegisterService {
             //存入redis中，时间为1分钟过期
             redisUtil.set(phone,code,60);
 
-        return Result.success(code);
+        return Result.success();
     }
 
 
