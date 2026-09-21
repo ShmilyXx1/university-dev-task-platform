@@ -7,6 +7,7 @@ import com.svtu.entity.User;
 import com.svtu.mapper.ChatMessageMapper;
 import com.svtu.mapper.UserMapper;
 import com.svtu.mapper.UserRoleMapper;
+import com.svtu.util.RedisUtil;
 import com.svtu.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -43,6 +44,7 @@ public class ChatWebSocket {
     private static UserRoleMapper userRoleMapper;
     private static RabbitTemplate rabbitTemplate;
     private static ChatMessageMapper chatMessageMapper;
+    private static RedisUtil redisUtil;
 
     @Autowired
     public void setJwtUtil(JwtUtil jwtUtil) { ChatWebSocket.jwtUtil = jwtUtil; }
@@ -54,6 +56,8 @@ public class ChatWebSocket {
     public void setRabbitTemplate(RabbitTemplate rabbitTemplate) { ChatWebSocket.rabbitTemplate = rabbitTemplate; }
     @Autowired
     public void setChatMessageMapper(ChatMessageMapper chatMessageMapper) { ChatWebSocket.chatMessageMapper = chatMessageMapper; }
+    @Autowired
+    public void setRedisUtil(RedisUtil redisUtil) { ChatWebSocket.redisUtil = redisUtil; }
 
     // ===== 全局状态 =====
     /** 所有在线连接：userId -> Session */
@@ -472,6 +476,8 @@ public class ChatWebSocket {
             msg.setIsRead(0);  // 初始未读（接收方标已读后会 update）
             msg.setSendDatetime(new Date());
             chatMessageMapper.insert(msg);
+            // 维护 Redis 未读计数：key=接收者, field=发送者
+            redisUtil.hIncrBy("unread:" + toUserId, String.valueOf(fromUserId), 1);
         } catch (Exception e) {
             log.error("聊天消息落库失败", e);
         }

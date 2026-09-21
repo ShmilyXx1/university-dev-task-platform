@@ -9,6 +9,7 @@ import com.svtu.exception.UserException;
 import com.svtu.mapper.OrderMapper;
 import com.svtu.service.OrderService;
 import com.svtu.service.PayService;
+import com.svtu.util.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ScopeMetadata;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,8 @@ public class OrderServiceImpl implements OrderService {
     private Common common;
     @Autowired
     private PayService payService;
+    @Autowired
+    private RedisUtil redisUtil;
 
     /**
      * 查询所有未被接单的订单
@@ -106,21 +109,34 @@ public class OrderServiceImpl implements OrderService {
     public Result<Void> getterUpdateOrder(int orderId, int userId) {
         common.checkOrderId(orderId);
         common.checkUserId(userId);
-        Order order = orderMapper.selectById(orderId);
-        if (order == null) {
-            throw new UserException(501, "订单不存在");
+        // 分布式锁：前置拦截并发接单，让第二个请求快速失败；DB 的 WHERE state=0 仍为最终防线
+        String lockKey = "order:lock:" + orderId;
+        String lockVal = String.valueOf(userId);
+        if (!redisUtil.tryLock(lockKey, lockVal, 10)) {
+            throw new UserException(501, "该订单正在被接取，请稍后重试");
         }
-        if (!"1".equals(order.getPayState())) {
-            throw new UserException(501, "发单人尚未托管赏金，无法接单");
-        }
-        if (!"1".equals(order.getDepositState())) {
-            throw new UserException(501, "请先支付押金");
-        }
-        int rows=orderMapper.getterUpdateOrder(orderId,userId);
-        if(rows==1){
-            return Result.success();
-        }else {
-            throw new UserException(501,"该订单已被接取");
+        try {
+            Order order = orderMapper.selectById(orderId);
+            if (order == null) {
+                throw new UserException(501, "订单不存在");
+            }
+            if(order.getSenderId()==userId){
+                throw new UserException(501,"不能接取自己发布的订单");
+            }
+            if (!"1".equals(order.getPayState())) {
+                throw new UserException(501, "发单人尚未托管赏金，无法接单");
+            }
+            if (!"1".equals(order.getDepositState())) {
+                throw new UserException(501, "请先支付押金");
+            }
+            int rows=orderMapper.getterUpdateOrder(orderId,userId);
+            if(rows==1){
+                return Result.success();
+            }else {
+                throw new UserException(501,"该订单已被接取");
+            }
+        } finally {
+            redisUtil.unlock(lockKey, lockVal);
         }
 
     }
