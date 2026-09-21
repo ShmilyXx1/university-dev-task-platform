@@ -48,20 +48,28 @@ public class OrderExpireTask {
             // 复用接单锁：抢不到说明用户正在接单，跳过本轮，下轮再处理
             if (!redisUtil.tryLock(lockKey, lockVal, 60)) continue;
             try {
-                // 退款：refund 内部只改 t_payment 流水，不改 t_order，需自行更新订单状态
+                // 退款：单独 try-catch，退款失败（如沙箱未配置/网络异常）不影响订单关闭
                 String newPayState = order.getPayState();
                 String newDepositState = order.getDepositState();
                 if ("1".equals(order.getPayState())) {
-                    if (payService.refund(orderId, "BOUNTY", "订单过期未接取，退还赏金")) {
-                        newPayState = "3"; // 已退款
+                    try {
+                        if (payService.refund(orderId, "BOUNTY", "订单过期未接取，退还赏金")) {
+                            newPayState = "3"; // 已退款
+                        }
+                    } catch (Exception re) {
+                        log.error("订单过期-赏金退款失败，订单仍将关闭：orderId={}", orderId, re);
                     }
                 }
                 if ("1".equals(order.getDepositState())) {
-                    if (payService.refund(orderId, "DEPOSIT", "订单过期未接取，退还押金")) {
-                        newDepositState = "2"; // 已退还
+                    try {
+                        if (payService.refund(orderId, "DEPOSIT", "订单过期未接取，退还押金")) {
+                            newDepositState = "2"; // 已退还
+                        }
+                    } catch (Exception re) {
+                        log.error("订单过期-押金退款失败，订单仍将关闭：orderId={}", orderId, re);
                     }
                 }
-                // 条件更新：仅当仍是待接取(state=0)时才关闭，避免与接单竞态
+                // 条件更新：仅当仍是待接取(state=0)时才关闭，避免与接单竞态；无论退款是否成功都执行
                 orderMapper.update(null, new LambdaUpdateWrapper<Order>()
                         .eq(Order::getOrderId, orderId)
                         .eq(Order::getState, "0")
