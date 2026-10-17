@@ -39,10 +39,10 @@
 
     <el-empty v-if="!loading && feedbackList.length === 0" description="暂无反馈记录" />
 
-    <el-dialog v-model="dialogVisible" :title="`回复反馈 #${current.feedbackId || ''}`" width="600px" destroy-on-close>
+    <el-dialog v-if="dialogVisible" v-model="dialogVisible" :title="`回复反馈 #${current?.feedbackId || ''}`" width="600px" destroy-on-close>
       <div v-if="current" class="dialog-tip">
         <div class="user-content">
-          <el-icon color="#4080FF"><ChatDotRound /></el-icon>
+          <el-icon color="var(--primary)"><ChatDotRound /></el-icon>
           <span class="pre-wrap-text">{{ current.content }}</span>
         </div>
         <div class="fb-time">{{ current.username }} 提交于 {{ formatDate(current.sendDatetime) }}</div>
@@ -175,7 +175,7 @@ onMounted(loadList)
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  background: #f4f8ff;
+  background: var(--primary-lighter);
   border-radius: 8px;
   padding: 12px;
 }
@@ -187,7 +187,7 @@ onMounted(loadList)
 }
 .fb-time {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-top: 6px;
 }
 </style>

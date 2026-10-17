@@ -107,7 +107,10 @@ public class PayServiceImpl implements PayService {
 
             AlipayTradePagePayResponse response = alipayClient.pageExecute(request);
             // body 是一段自动提交的 HTML 表单，前端 document.write 即可跳转收银台
-            return Result.success(response.getBody());
+            String body = response.getBody();
+            log.info("支付宝pagePay返回表单action：{}", body != null && body.contains("action=\"") ?
+                    body.substring(body.indexOf("action=\"") + 8, body.indexOf("\"", body.indexOf("action=\"") + 8)) : "unknown");
+            return Result.success(body);
         } catch (Exception e) {
             log.error("创建支付宝支付失败", e);
             throw new UserException(501, "创建支付失败：" + e.getMessage());
@@ -206,6 +209,14 @@ public class PayServiceImpl implements PayService {
                 paymentMapper.updateById(payment);
                 log.info("退款成功：orderId={}, type={}, amount={}, 支付宝流水={}",
                         orderId, payType, payment.getAmount(), response.getTradeNo());
+                return true;
+            } else if ("ACQ.TRADE_NOT_EXIST".equals(response.getSubCode())) {
+                // 支付宝侧不存在该交易（历史测试数据 / 沙箱应用或网关变更后旧单号失效）：
+                // 平台实际未收到这笔款，视为无需退款，直接关闭流水，避免资金状态卡在"已支付"
+                payment.setState("3");
+                paymentMapper.updateById(payment);
+                log.warn("退款跳过：支付宝无此交易，按无需退款处理。orderId={}, type={}, outTradeNo={}",
+                        orderId, payType, payment.getOutTradeNo());
                 return true;
             } else {
                 log.error("退款失败：orderId={}, code={}, msg={}, subMsg={}",

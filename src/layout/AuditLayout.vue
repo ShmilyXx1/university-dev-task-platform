@@ -29,6 +29,16 @@
 
       <!-- 页面内容区域 -->
       <el-main class="layout-main">
+        <div class="page-banner">
+          <div>
+            <div class="banner-badge">审核工作台 · AUDIT CONSOLE</div>
+            <div class="banner-title">{{ pageTitle }}</div>
+            <div class="banner-sub">{{ pageSub }}</div>
+          </div>
+          <div class="banner-actions">
+            <span class="banner-chip">{{ userStore.adminName || '审核员' }}</span>
+          </div>
+        </div>
         <router-view />
       </el-main>
     </el-container>
@@ -36,12 +46,21 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 import router from '../router'
 import NotificationBell from '../components/NotificationBell.vue'
 
 const userStore = useUserStore()
+const route = useRoute()
+
+const PAGE_META = {
+  '/auditMain': { title: '成果审核', sub: '核对接单人提交的交付成果，通过后自动完成资金结算' }
+}
+const pageTitle = computed(() => PAGE_META[route.path]?.title || '审核工作台')
+const pageSub = computed(() => PAGE_META[route.path]?.sub || '交付成果审核与结算')
 const handleLogout = () => {
   ElMessage.success('已退出登录')
   userStore.logout();
@@ -78,7 +97,7 @@ const handleLogout = () => {
   height: 22px;
   border-radius: 7px;
   background: var(--gradient-primary);
-  box-shadow: 0 4px 12px rgba(64, 128, 255, .5);
+  box-shadow: 0 4px 12px rgba(79, 107, 254, .5);
 }
 
 .layout-header {
@@ -103,7 +122,7 @@ const handleLogout = () => {
 
 .header-username {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-regular);
   font-weight: 500;
 }
 

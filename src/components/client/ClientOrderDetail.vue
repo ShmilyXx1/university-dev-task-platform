@@ -6,157 +6,236 @@
     </el-header>
 
     <el-main class="page-main">
-      <el-card class="detail-card" shadow="hover" v-loading="loading">
-        <template #header v-if="detail">
-          <div class="card-header-bar">
-            <span class="card-title">
-              #{{ detail.orderId }} - {{ detail.title }}
-            </span>
-            <el-tag :type="stateTagType(detail.state)" size="large" effect="dark">
-              {{ stateText(detail.state) }}
-            </el-tag>
-          </div>
-        </template>
-
+      <div class="detail-wrap" v-loading="loading">
         <el-empty v-if="!loading && !detail" description="订单不存在或已被删除" />
 
-        <el-descriptions v-if="detail" :column="2" border size="default">
-          <el-descriptions-item label="订单ID">{{ detail.orderId }}</el-descriptions-item>
-          <el-descriptions-item label="订单类型">
-            <el-tag>{{ detail.type }}</el-tag>
-          </el-descriptions-item>
-
-          <el-descriptions-item label="发布人">
-            <div class="user-cell">
-              <el-avatar :size="28" class="sender-avatar">{{ detail.senderName ? detail.senderName.charAt(0).toUpperCase() : '-' }}</el-avatar>
-              <el-button v-if="detail.senderName" link type="primary" @click="goUserProfile(detail.senderName)">{{ detail.senderName }}</el-button>
-              <span v-else>-</span>
-              <el-button
-                v-if="detail.senderName"
-                type="primary"
-                link
-                size="small"
-                :icon="Message"
-                @click="openContactSender"
-              >
-                联系发单人
-              </el-button>
+        <template v-if="detail">
+          <!-- 顶部横幅 -->
+          <section class="detail-hero">
+            <div class="hero-main">
+              <div class="hero-eyebrow">
+                <span class="order-no">订单 #{{ detail.orderId }}</span>
+                <span class="dot"></span>
+                <span>{{ detail.type || '其他' }}</span>
+              </div>
+              <h1 class="hero-title">{{ detail.title }}</h1>
+              <div class="hero-meta">
+                <span class="meta-pill"><el-icon><Calendar /></el-icon>发布于 {{ formatDate(detail.releaseDatetime) }}</span>
+                <span class="meta-pill"><el-icon><Clock /></el-icon>截止 {{ formatDate(detail.endDatetime) }}</span>
+                <el-tag :type="stateTagType(detail.state)" effect="dark" round>{{ stateText(detail.state) }}</el-tag>
+              </div>
             </div>
-          </el-descriptions-item>
-          <el-descriptions-item label="接单人">
-            <div class="user-cell">
-              <template v-if="detail.getterName">
-                <el-avatar :size="28" class="getter-avatar">{{ detail.getterName.charAt(0).toUpperCase() }}</el-avatar>
-                <el-button link type="primary" @click="goUserProfile(detail.getterName)">{{ detail.getterName }}</el-button>
-              </template>
-              <span v-else class="text-muted">暂未接取</span>
+            <div class="hero-price">
+              <div class="price-label">订单赏金</div>
+              <div class="price-value"><span class="cny">¥</span>{{ detail.senderPrice }}</div>
+              <div class="price-sub">发单人定价 · 一口价</div>
             </div>
-          </el-descriptions-item>
+          </section>
 
-          <el-descriptions-item label="发布方报价">
-            <span class="price-text">¥ {{ detail.senderPrice }}</span>
-          </el-descriptions-item>
+          <!-- 流程步骤 -->
+          <el-card shadow="never" class="steps-card">
+            <el-alert
+              v-if="String(detail.state) === '3'"
+              title="该订单已取消，交易流程已终止"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+            <el-steps v-else :active="stepActive" finish-status="success" align-center>
+              <el-step title="发布需求" :description="formatDate(detail.releaseDatetime)" />
+              <el-step title="赏金托管" :description="String(detail.payState) === '1' ? '已托管' : '待托管'" />
+              <el-step title="接单" :description="detail.getterName || '待接取'" />
+              <el-step title="提交成果" :description="detail.userComplete ? '已提交' : '待提交'" />
+              <el-step title="审核结算" :description="detail.auditorComplete ? '审核通过' : (detail.userComplete ? '审核中' : '待审核')" />
+            </el-steps>
+          </el-card>
 
-          <el-descriptions-item label="押金">
-            <span v-if="detail.deposit != null" class="deposit-text">¥ {{ detail.deposit }}</span>
-            <span v-else class="text-muted">无押金</span>
-          </el-descriptions-item>
+          <div class="detail-grid">
+            <!-- 左侧内容 -->
+            <div class="detail-left">
+              <el-card shadow="never" class="info-card">
+                <template #header>
+                  <div class="section-title"><span class="bar"></span>需求信息</div>
+                </template>
 
-          <el-descriptions-item label="订单状态" :span="2">
-            <el-tag :type="stateTagType(detail.state)">{{ stateText(detail.state) }}</el-tag>
-            <el-tag
-              :type="String(detail.payState) === '1' ? 'success' : 'info'"
-              class="status-tag"
-            >
-              {{ String(detail.payState) === '1' ? '赏金已托管' : '赏金未托管' }}
-            </el-tag>
-            <el-tag
-              v-if="detail.deposit != null && Number(detail.deposit) > 0"
-              :type="String(detail.depositState) === '1' ? 'success' : 'warning'"
-              class="status-tag"
-            >
-              {{ String(detail.depositState) === '1' ? '押金已支付' : '押金待支付' }}
-            </el-tag>
-            <span class="status-info">
-              接单人完成：{{ detail.userComplete ? '是' : '否' }}
-              &nbsp;|&nbsp;
-              审核确认：{{ detail.auditorComplete ? '是' : '否' }}
-            </span>
-          </el-descriptions-item>
+                <div class="meta-grid">
+                  <div class="meta-item">
+                    <span class="meta-label">订单编号</span>
+                    <span class="meta-value">#{{ detail.orderId }}</span>
+                  </div>
+                  <div class="meta-item">
+                    <span class="meta-label">需求类型</span>
+                    <span class="meta-value"><span class="type-tag">{{ detail.type || '其他' }}</span></span>
+                  </div>
+                  <div class="meta-item">
+                    <span class="meta-label">发布时间</span>
+                    <span class="meta-value">{{ formatDate(detail.releaseDatetime) }}</span>
+                  </div>
+                  <div class="meta-item">
+                    <span class="meta-label">截止时间</span>
+                    <span class="meta-value">{{ formatDate(detail.endDatetime) }}</span>
+                  </div>
+                  <div class="meta-item">
+                    <span class="meta-label">完成时间</span>
+                    <span class="meta-value">{{ formatDate(detail.completeDatetime) }}</span>
+                  </div>
+                  <div class="meta-item">
+                    <span class="meta-label">最后更新</span>
+                    <span class="meta-value">{{ formatDate(detail.updateDatetime) }}</span>
+                  </div>
+                </div>
 
-          <el-descriptions-item label="发布时间">{{ formatDate(detail.releaseDatetime) }}</el-descriptions-item>
-          <el-descriptions-item label="截止时间">{{ formatDate(detail.endDatetime) }}</el-descriptions-item>
+                <div class="content-block">
+                  <div class="block-label">需求描述</div>
+                  <div class="order-content">{{ detail.content || '暂无详细描述' }}</div>
+                </div>
+              </el-card>
 
-          <el-descriptions-item label="完成时间">
-            {{ formatDate(detail.completeDatetime) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="最后更新">
-            {{ formatDate(detail.updateDatetime) }}
-          </el-descriptions-item>
+              <el-card shadow="never" class="info-card">
+                <template #header>
+                  <div class="section-title"><span class="bar"></span>交易与交付</div>
+                </template>
 
-          <el-descriptions-item label="订单内容" :span="2">
-            <div class="order-content">
-              {{ detail.content || '-' }}
+                <div class="trade-grid">
+                  <div class="trade-item">
+                    <div class="trade-name">赏金托管</div>
+                    <el-tag :type="payTag.type" effect="light" round>{{ payTag.text }}</el-tag>
+                  </div>
+                  <div class="trade-item">
+                    <div class="trade-name">履约押金</div>
+                    <el-tag :type="depositTag.type" effect="light" round>{{ depositTag.text }}</el-tag>
+                  </div>
+                  <div class="trade-item">
+                    <div class="trade-name">接单人完成</div>
+                    <el-tag :type="detail.userComplete ? 'success' : 'info'" effect="light" round>
+                      {{ detail.userComplete ? '已提交成果' : '未提交' }}
+                    </el-tag>
+                  </div>
+                  <div class="trade-item">
+                    <div class="trade-name">审核确认</div>
+                    <el-tag :type="detail.auditorComplete ? 'success' : 'info'" effect="light" round>
+                      {{ detail.auditorComplete ? '审核通过' : '未审核' }}
+                    </el-tag>
+                  </div>
+                </div>
+              </el-card>
             </div>
-          </el-descriptions-item>
-        </el-descriptions>
 
-        <!-- 底部操作按钮区 -->
-        <div v-if="detail" class="action-bar">
-          <el-button @click="handleBack" :icon="ArrowLeft">{{ route.query.from === 'myOrders' ? '返回我的订单' : '返回大厅' }}</el-button>
+            <!-- 右侧操作栏 -->
+            <aside class="detail-right">
+              <el-card shadow="never" class="side-card">
+                <div class="side-title">订单金额</div>
+                <div class="amount-row">
+                  <span>订单赏金</span>
+                  <b class="amount-bounty">¥{{ detail.senderPrice }}</b>
+                </div>
+                <div class="amount-row">
+                  <span>履约押金</span>
+                  <b class="amount-deposit">{{ Number(detail.deposit) > 0 ? '¥' + detail.deposit : '无' }}</b>
+                </div>
+                <p class="amount-tip">赏金由发单人托管至平台，审核通过后结算给接单人；押金在订单完成后原路退还。</p>
 
-          <!-- 待接取状态：非发单人可接单 -->
-          <!-- 发单人：待被接取且赏金未托管时，显示"托管赏金" -->
-          <el-button
-            v-if="String(detail.state) === '0' && !isNotSender && String(detail.payState) !== '1'"
-            type="warning"
-            :icon="Wallet"
-            @click="handleEscrow"
-            :loading="payLoading"
-          >
-            托管赏金 ¥{{ detail.senderPrice }}
-          </el-button>
+                <div class="side-actions">
+                  <!-- 发单人：待被接取且赏金未托管时显示托管 -->
+                  <el-button
+                    v-if="String(detail.state) === '0' && !isNotSender && String(detail.payState) !== '1'"
+                    type="warning"
+                    :icon="Wallet"
+                    @click="handleEscrow"
+                    :loading="payLoading"
+                  >
+                    托管赏金 ¥{{ detail.senderPrice }}
+                  </el-button>
 
-          <el-button
-            v-if="String(detail.state) === '0' && isNotSender"
-            type="success"
-            :icon="Check"
-            @click="handleAccept"
-            :loading="acceptLoading"
-          >
-            {{ needDeposit ? `接单（需付押金 ¥${detail.deposit}）` : '接单' }}
-          </el-button>
+                  <!-- 接单人：待接取订单可接单 -->
+                  <el-button
+                    v-if="String(detail.state) === '0' && isNotSender"
+                    type="success"
+                    :icon="Check"
+                    @click="handleAccept"
+                    :loading="acceptLoading"
+                  >
+                    {{ needDeposit ? `接单（需付押金 ¥${detail.deposit}）` : '接单' }}
+                  </el-button>
 
-          <!-- 已被接取状态：接单人提交交付路径（提交后进入审核） -->
-          <el-button
-            v-if="String(detail.state) === '1' && isGetter && String(detail.userComplete) !== '1'"
-            type="primary"
-            @click="handleSubmitPath"
-            :loading="completeLoading"
-          >
-            提交交付路径
-          </el-button>
+                  <!-- 已被接取：接单人提交交付路径 -->
+                  <el-button
+                    v-if="String(detail.state) === '1' && isGetter && String(detail.userComplete) !== '1'"
+                    type="primary"
+                    :icon="Upload"
+                    @click="handleSubmitPath"
+                    :loading="completeLoading"
+                  >
+                    提交交付路径
+                  </el-button>
 
-          <!-- 已提交结果、等待审核：提示状态 -->
-          <el-tag
-            v-if="String(detail.state) === '1' && isGetter && String(detail.userComplete) === '1'"
-            type="warning"
-            effect="plain"
-          >
-            已提交交付结果，等待审核
-          </el-tag>
+                  <!-- 已提交、等待审核 -->
+                  <el-alert
+                    v-if="String(detail.state) === '1' && isGetter && String(detail.userComplete) === '1'"
+                    title="已提交交付结果，等待审核"
+                    type="warning"
+                    :closable="false"
+                    show-icon
+                  />
 
-          <!-- 已完成状态：接单人可撤销，回退为已被接取重新提交 -->
-          <el-button
-            v-if="String(detail.state) === '2' && isGetter"
-            type="warning"
-            @click="handleRevoke"
-            :loading="cancelLoading"
-          >
-            撤销完成状态
-          </el-button>
-        </div>
-      </el-card>
+                  <!-- 已完成：接单人可撤销 -->
+                  <el-button
+                    v-if="String(detail.state) === '2' && isGetter"
+                    type="warning"
+                    plain
+                    @click="handleRevoke"
+                    :loading="cancelLoading"
+                  >
+                    撤销完成状态
+                  </el-button>
+
+                  <el-button class="back-btn" :icon="ArrowLeft" @click="handleBack">
+                    {{ route.query.from === 'myOrders' ? '返回我的订单' : '返回大厅' }}
+                  </el-button>
+                </div>
+              </el-card>
+
+              <el-card shadow="never" class="side-card">
+                <div class="side-title">交易双方</div>
+
+                <div class="person-row">
+                  <el-avatar :size="42" class="sender-avatar">
+                    {{ detail.senderName ? detail.senderName.charAt(0).toUpperCase() : 'U' }}
+                  </el-avatar>
+                  <div class="person-info">
+                    <div class="person-name">{{ detail.senderName || '未知用户' }}</div>
+                    <div class="person-role">发单人</div>
+                  </div>
+                  <el-button
+                    v-if="detail.senderName"
+                    size="small"
+                    :icon="Message"
+                    @click="openContactSender"
+                  >联系</el-button>
+                </div>
+
+                <div class="person-divider"></div>
+
+                <div class="person-row">
+                  <el-avatar :size="42" class="getter-avatar">
+                    {{ detail.getterName ? detail.getterName.charAt(0).toUpperCase() : '?' }}
+                  </el-avatar>
+                  <div class="person-info">
+                    <div class="person-name">{{ detail.getterName || '暂未接取' }}</div>
+                    <div class="person-role">接单人</div>
+                  </div>
+                  <el-button
+                    v-if="detail.getterName"
+                    size="small"
+                    :icon="User"
+                    @click="goUserProfile(detail.getterName)"
+                  >主页</el-button>
+                </div>
+              </el-card>
+            </aside>
+          </div>
+        </template>
+      </div>
 
       <!-- 联系发单人弹窗 -->
       <el-dialog v-model="contactVisible" title="联系发单人" width="440px" :close-on-click-modal="false">
@@ -192,7 +271,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Check, Message, CopyDocument, Promotion, Wallet } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Message, CopyDocument, Promotion, Wallet, Calendar, Clock, User, Upload } from '@element-plus/icons-vue'
 import { selectOneOrder, getterUpdateOrder, resultUpdateOrder, revokeComplete } from '../../api/order'
 import { createPay } from '../../api/pay'
 import { useUserStore } from '../../stores/user'
@@ -223,6 +302,35 @@ const STATE_MAP = {
 }
 const stateText = (s) => STATE_MAP[String(s)]?.text ?? '未知状态'
 const stateTagType = (s) => STATE_MAP[String(s)]?.type ?? 'danger'
+
+// 流程步骤进度
+const stepActive = computed(() => {
+  const d = detail.value
+  if (!d) return 0
+  const s = String(d.state)
+  if (s === '3') return 1
+  if (s === '0') return String(d.payState) === '1' ? 2 : 1
+  if (s === '1') return String(d.userComplete) === '1' ? 4 : 3
+  if (s === '2') return 5
+  return 0
+})
+
+// 赏金 / 押金状态标签
+const payTag = computed(() => {
+  const s = String(detail.value?.payState)
+  if (s === '1') return { text: '已托管', type: 'success' }
+  if (s === '2') return { text: '已结算', type: 'success' }
+  if (s === '3') return { text: '已退款', type: 'info' }
+  return { text: '未托管', type: 'warning' }
+})
+const depositTag = computed(() => {
+  const d = detail.value
+  if (!d || !(Number(d.deposit) > 0)) return { text: '无需押金', type: 'info' }
+  const s = String(d.depositState)
+  if (s === '1') return { text: '已支付', type: 'success' }
+  if (s === '2') return { text: '已退还', type: 'info' }
+  return { text: '待支付', type: 'warning' }
+})
 
 // 日期格式化
 const formatDate = (dateStr) => {
@@ -469,123 +577,388 @@ onMounted(() => {
 }
 
 .page-main {
-  padding: 20px;
-  display: flex;
-  justify-content: center;
+  padding: 24px;
+  background: var(--content-bg);
 }
 
-.detail-card {
-  width: 820px;
+.detail-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  min-height: 320px;
 }
 
-.card-header-bar {
+/* ============ 顶部横幅 ============ */
+.detail-hero {
+  position: relative;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 28px;
+  overflow: hidden;
+  padding: 28px 32px;
+  border-radius: 20px;
+  background: linear-gradient(120deg, #3F54E6 0%, #4F6BFE 50%, #38BDF8 100%);
+  box-shadow: 0 20px 40px -20px rgba(63, 84, 230, .65);
+  color: #fff;
+}
+.detail-hero::after {
+  content: '';
+  position: absolute;
+  right: -80px;
+  top: -120px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  pointer-events: none;
+}
+.hero-main {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, .82);
+  letter-spacing: .4px;
+}
+.order-no {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .18);
+  border: 1px solid rgba(255, 255, 255, .22);
+  color: #fff;
+}
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .55);
+}
+.hero-title {
+  margin: 10px 0 14px;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: .4px;
+  color: #fff;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   flex-wrap: wrap;
 }
-
-.card-title {
-  font-size: 16px;
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, .85);
+}
+.hero-price {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  text-align: right;
+  padding: 14px 22px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .16);
+  border: 1px solid rgba(255, 255, 255, .25);
+  backdrop-filter: blur(6px);
+}
+.price-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, .78);
+  letter-spacing: .5px;
+}
+.price-value {
+  font-size: 34px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+}
+.price-value .cny {
+  font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  margin-right: 2px;
+}
+.price-sub {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, .72);
 }
 
-.user-cell {
+/* ============ 流程卡 ============ */
+.steps-card {
+  margin-top: 16px;
+  border-radius: 16px;
+}
+:deep(.steps-card .el-card__body) {
+  padding: 22px 26px 12px;
+}
+:deep(.el-step__title) {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+:deep(.el-step__description) {
+  font-size: 11.5px;
+  padding: 0 6px;
+}
+
+/* ============ 双栏布局 ============ */
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+.detail-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.info-card {
+  border-radius: 16px;
+}
+.section-title {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
-
-.sender-avatar {
+.section-title .bar {
+  width: 4px;
+  height: 15px;
+  border-radius: 3px;
   background: var(--gradient-primary);
+}
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  padding: 4px 2px 18px;
+  border-bottom: 1px dashed var(--border-light);
+}
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.meta-label {
   font-size: 12px;
+  color: var(--text-muted);
 }
-
-.getter-avatar {
-  background: #67C23A;
+.meta-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  word-break: break-all;
+}
+.type-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: #EEF1FF;
+  color: #4F6BFE;
   font-size: 12px;
+  font-weight: 500;
 }
-
-.text-muted {
-  color: #909399;
+.content-block {
+  padding-top: 16px;
 }
-
-.price-text {
-  color: #F56C6C;
-  font-weight: 700;
-  font-size: 16px;
+.block-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
 }
-
-.deposit-text {
-  color: #E6A23C;
-  font-weight: 700;
-  font-size: 16px;
-}
-
-.status-tag {
-  margin-left: 10px;
-}
-
-.status-info {
-  margin-left: 16px;
-  color: #909399;
-}
-
 .order-content {
   white-space: pre-wrap;
-  line-height: 1.8;
-  min-height: 80px;
-  color: #303133;
+  line-height: 1.85;
+  min-height: 84px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #FAFBFE;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  font-size: 13.5px;
 }
-
-.action-bar {
-  margin-top: 24px;
-  display: flex;
+.trade-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+}
+.trade-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #FAFBFE;
+  border: 1px solid var(--border-light);
+}
+.trade-name {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.trade-item .el-tag {
+  align-self: flex-start;
 }
 
+/* ============ 右侧栏 ============ */
+.detail-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 84px;
+}
+.side-card {
+  border-radius: 16px;
+}
+.side-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+.amount-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: 13px;
+  color: var(--text-regular);
+}
+.amount-bounty {
+  color: #F0564A;
+  font-size: 20px;
+  font-weight: 800;
+}
+.amount-deposit {
+  color: #E6A23C;
+  font-size: 15px;
+  font-weight: 700;
+}
+.amount-tip {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #F6F8FF;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.side-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.side-actions .el-button {
+  width: 100%;
+  margin-left: 0;
+}
+.back-btn {
+  color: var(--text-regular);
+}
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.person-info {
+  flex: 1;
+  min-width: 0;
+}
+.person-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.person-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 14px 0;
+}
+.sender-avatar {
+  background: var(--gradient-primary);
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(79, 107, 254, .28);
+}
+.getter-avatar {
+  background: linear-gradient(135deg, #23B26D 0%, #6FDC9E 100%);
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(35, 178, 109, .25);
+}
+
+/* ============ 弹窗 ============ */
 .contact-header {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 8px 4px 16px;
-  border-bottom: 1px dashed #ebeef5;
+  border-bottom: 1px dashed var(--border-light);
 }
-
 .sender-avatar-lg {
   background: var(--gradient-primary);
   font-size: 18px;
   box-shadow: 0 4px 12px rgba(64, 128, 255, .3);
 }
-
 .contact-name {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
-
 .contact-role {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
   margin-top: 2px;
 }
-
 .contact-body {
   padding: 16px 4px 4px;
 }
-
 .contact-label {
-  color: #606266;
+  color: var(--text-regular);
   font-size: 13px;
   margin-bottom: 8px;
 }
 
-:deep(.el-descriptions__label) {
-  width: 110px;
-  font-weight: 600;
+/* ============ 窄屏适配 ============ */
+@media (max-width: 980px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-right {
+    position: static;
+  }
+  .detail-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .hero-price {
+    text-align: left;
+  }
+  .trade-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>

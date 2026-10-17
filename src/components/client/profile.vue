@@ -1,23 +1,25 @@
 <template>
   <div class="profile-page">
-    <!-- 顶部返回 -->
+    <!-- 顶部 -->
     <div class="profile-header">
-      <el-card class="header-card" shadow="never">
-        <div class="header-inner">
-          <el-button type="primary" text @click="goBack">
+      <div class="page-banner">
+        <div>
+          <div class="banner-badge">个人中心 · PROFILE</div>
+          <div class="banner-title">个人中心</div>
+          <div class="banner-sub">维护个人资料与账号安全，查看我的订单记录</div>
+        </div>
+        <div class="banner-actions">
+          <el-button class="banner-btn" text @click="goBack">
             <el-icon class="icon-gap"><ArrowLeft /></el-icon>返回大厅
           </el-button>
-          <h2 class="page-title">个人中心</h2>
-          <div>
-            <el-button @click="goMyOrders">
-              <el-icon class="icon-gap"><List /></el-icon>我的订单
-            </el-button>
-            <el-button type="primary" plain @click="goResetPwd" class="ml-8">
-              <el-icon class="icon-gap"><Lock /></el-icon>修改密码
-            </el-button>
-          </div>
+          <el-button class="banner-btn" @click="goMyOrders">
+            <el-icon class="icon-gap"><List /></el-icon>我的订单
+          </el-button>
+          <el-button class="banner-btn" @click="goResetPwd">
+            <el-icon class="icon-gap"><Lock /></el-icon>修改密码
+          </el-button>
         </div>
-      </el-card>
+      </div>
     </div>
 
     <div class="profile-body">
@@ -274,32 +276,28 @@ onMounted(() => {
 }
 
 .profile-header {
-  padding: 16px 24px 0;
+  padding: 24px 24px 0;
+  max-width: 1440px;
+  margin: 0 auto;
 }
-.header-card {
-  border-radius: 12px;
+.banner-btn {
+  color: rgba(255, 255, 255, .92) !important;
+  border-color: rgba(255, 255, 255, .35) !important;
+  background: rgba(255, 255, 255, .12) !important;
 }
-.header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+.banner-btn:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, .22) !important;
 }
 
 .profile-body {
-  padding: 20px 24px 40px;
+  padding: 16px 24px 40px;
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
 .avatar-card {
-  border-radius: 12px;
+  border-radius: 16px;
   margin-bottom: 24px;
 }
 .avatar-wrapper {
@@ -339,7 +337,7 @@ onMounted(() => {
 .summary-name {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 8px 0 4px;
 }
 .summary-role {
@@ -353,7 +351,7 @@ onMounted(() => {
   border-radius: 999px;
 }
 .summary-phone {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
   margin: 0;
 }
@@ -369,7 +367,7 @@ onMounted(() => {
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 .info-form {
   padding: 10px 10px 0;

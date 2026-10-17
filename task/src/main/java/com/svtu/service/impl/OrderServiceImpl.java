@@ -126,7 +126,9 @@ public class OrderServiceImpl implements OrderService {
             if (!"1".equals(order.getPayState())) {
                 throw new UserException(501, "发单人尚未托管赏金，无法接单");
             }
-            if (!"1".equals(order.getDepositState())) {
+            // 仅当订单有押金时才要求先支付押金；无押金订单可直接接单
+            if (order.getDeposit() != null && order.getDeposit().signum() > 0
+                    && !"1".equals(order.getDepositState())) {
                 throw new UserException(501, "请先支付押金");
             }
             int rows=orderMapper.getterUpdateOrder(orderId,userId);

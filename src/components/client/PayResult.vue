@@ -4,7 +4,7 @@
       <div class="result-icon">
         <el-icon v-if="status === 'success'" color="#67C23A" :size="64"><CircleCheckFilled /></el-icon>
         <el-icon v-else-if="status === 'fail'" color="#F56C6C" :size="64"><CircleCloseFilled /></el-icon>
-        <el-icon v-else color="#4080FF" :size="64" class="rotating"><Loading /></el-icon>
+        <el-icon v-else color="var(--primary)" :size="64" class="rotating"><Loading /></el-icon>
       </div>
 
       <h2 class="result-title">
@@ -132,8 +132,8 @@ onUnmounted(clearTimer)
   align-items: center;
   margin: 0 auto 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f2f6ff, #f8fafc);
-  box-shadow: inset 0 0 0 1px #e6edfa, 0 14px 32px -14px rgba(64, 128, 255, .4);
+  background: linear-gradient(135deg, var(--primary-lighter), var(--border-light));
+  box-shadow: inset 0 0 0 1px var(--primary-light), 0 14px 32px -14px rgba(64, 128, 255, .4);
 }
 .rotating {
   animation: rotate 1.2s linear infinite;
@@ -145,10 +145,10 @@ onUnmounted(clearTimer)
 .result-title {
   margin: 0 0 12px;
   font-size: 22px;
-  color: #303133;
+  color: var(--text-primary);
 }
 .result-desc {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 14px;
   margin: 0 0 28px;
 }

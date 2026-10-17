@@ -49,7 +49,7 @@
           <el-tag :type="statusTag(current).type" size="small" class="tag-ml">{{ statusTag(current).text }}</el-tag>
         </div>
         <div class="user-content">
-          <el-icon color="#4080FF"><ChatDotRound /></el-icon>
+          <el-icon color="var(--primary)"><ChatDotRound /></el-icon>
           <span class="pre-wrap-text">{{ current.content }}</span>
         </div>
         <div class="fb-time">提交于 {{ formatDate(current.sendDatetime) }}</div>
@@ -198,7 +198,7 @@ onMounted(loadList)
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  background: #f4f8ff;
+  background: var(--primary-lighter);
   border-radius: 8px;
   padding: 12px;
 }
@@ -210,7 +210,7 @@ onMounted(loadList)
 }
 .fb-time {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-top: 6px;
 }
 </style>

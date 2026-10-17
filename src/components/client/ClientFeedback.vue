@@ -7,6 +7,16 @@
 
     <el-main class="page-main">
       <div class="feedback-wrap">
+        <div class="page-banner">
+          <div>
+            <div class="banner-badge">意见反馈 · FEEDBACK</div>
+            <div class="banner-title">问题反馈</div>
+            <div class="banner-sub">描述使用中遇到的问题或建议，客服会尽快跟进处理</div>
+          </div>
+          <div class="banner-actions">
+            <span class="banner-chip">{{ userStore.username || '用户' }}</span>
+          </div>
+        </div>
         <!-- 提交反馈 -->
         <el-card shadow="hover" class="feedback-card">
           <template #header>
@@ -44,7 +54,7 @@
             <!-- 用户反馈内容 -->
             <div class="fb-row">
               <div class="fb-content">
-                <el-icon color="#4080FF"><ChatDotRound /></el-icon>
+                <el-icon color="var(--primary)"><ChatDotRound /></el-icon>
                 <div class="fb-content-body">
                   <div class="fb-text">{{ item.content }}</div>
                   <div class="fb-time">提交于 {{ formatDate(item.sendDatetime) }}</div>
@@ -90,8 +100,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Check, RefreshLeft, Delete, ChatDotRound, Service } from '@element-plus/icons-vue'
 import { addFeedback, getMyFeedback, updateFeedbackSolve, deleteFeedback } from '../../api/feedback'
+import { useUserStore } from '../../stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const newContent = ref('')
 const submitting = ref(false)
@@ -184,7 +196,7 @@ onMounted(loadList)
 
 <style scoped>
 .feedback-item {
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-light);
   padding: 16px 0;
 }
 .feedback-item:last-child {
@@ -197,7 +209,7 @@ onMounted(loadList)
 }
 .fb-time {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-top: 6px;
 }
 .reply-box {
@@ -243,19 +255,30 @@ onMounted(loadList)
 }
 .page-main {
   background: var(--content-bg);
-  padding: 20px;
+  padding: 24px;
 }
 .feedback-wrap {
-  width: 820px;
+  width: 880px;
+  max-width: 100%;
   margin: 0 auto;
 }
 .feedback-card {
   margin-bottom: 20px;
-  border-radius: var(--radius);
+  border-radius: 16px;
   box-shadow: var(--shadow);
 }
 .card-title {
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+.card-title::before {
+  content: '';
+  width: 4px;
+  height: 15px;
+  border-radius: 3px;
+  background: var(--gradient-primary);
 }
 .submit-row {
   margin-top: 12px;

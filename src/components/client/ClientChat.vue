@@ -14,7 +14,7 @@
         <div class="chat-body">
           <!-- 未排队 -->
           <div v-if="status === 'idle'" class="center-area">
-            <el-icon :size="48" color="#4080FF"><Service /></el-icon>
+            <el-icon :size="48" color="var(--primary)"><Service /></el-icon>
             <p class="center-title">有问题？联系在线客服</p>
             <p class="center-desc">咨询人数较多时需排队等待，请耐心等候</p>
             <el-button type="primary" size="large" :loading="connecting" @click="applyQueue">
@@ -285,7 +285,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 .center-desc {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
   margin-bottom: 20px;
 }
@@ -301,12 +301,12 @@ onBeforeUnmount(() => {
   font-size: 20px;
 }
 .waiting-pos {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
 }
 .empty-tip {
   text-align: center;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 60px;
 }
 .msg-box {
@@ -348,13 +348,13 @@ onBeforeUnmount(() => {
 }
 .msg-row.service .msg-content {
   background: #fff;
-  color: #303133;
+  color: var(--text-primary);
   border: 1px solid var(--border-light);
   box-shadow: 0 2px 8px rgba(16, 24, 40, .05);
 }
 .msg-time {
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 .send-area {

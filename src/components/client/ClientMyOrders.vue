@@ -2,15 +2,50 @@
   <div class="my-orders-page">
     <!-- 顶部 -->
     <div class="page-header">
-      <el-card class="header-card" shadow="never">
-        <div class="header-inner">
-          <el-button type="primary" text @click="goBack">
+      <div class="page-banner">
+        <div>
+          <div class="banner-badge">个人中心 · MY ORDERS</div>
+          <div class="banner-title">我的订单</div>
+          <div class="banner-sub">跟踪发布与接取订单的进度、资金与交付状态</div>
+        </div>
+        <div class="banner-actions">
+          <el-button class="banner-back" text @click="goBack">
             <el-icon class="back-icon"><ArrowLeft /></el-icon>返回个人中心
           </el-button>
-          <h2 class="page-title">我的订单</h2>
-          <el-tag size="large" type="info">{{ userStore.username || '用户' }}</el-tag>
+          <span class="banner-chip">{{ userStore.username || '用户' }}</span>
         </div>
-      </el-card>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-tile">
+          <span class="tile-icon"><el-icon><Tickets /></el-icon></span>
+          <div class="tile-body">
+            <span class="tile-num">{{ senderTotal }}</span>
+            <span class="tile-label">我发布的订单</span>
+          </div>
+        </div>
+        <div class="stat-tile">
+          <span class="tile-icon green"><el-icon><Promotion /></el-icon></span>
+          <div class="tile-body">
+            <span class="tile-num">{{ getterTotal }}</span>
+            <span class="tile-label">我接取的订单</span>
+          </div>
+        </div>
+        <div class="stat-tile">
+          <span class="tile-icon orange"><el-icon><Clock /></el-icon></span>
+          <div class="tile-body">
+            <span class="tile-num">{{ ongoingTotal }}</span>
+            <span class="tile-label">进行中</span>
+          </div>
+        </div>
+        <div class="stat-tile">
+          <span class="tile-icon purple"><el-icon><CircleCheck /></el-icon></span>
+          <div class="tile-body">
+            <span class="tile-num">{{ finishedTotal }}</span>
+            <span class="tile-label">已完成</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="page-body">
@@ -203,10 +238,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, Tickets, Promotion, Clock, CircleCheck } from '@element-plus/icons-vue'
 import { useUserStore } from '../../stores/user'
 import {
   getSenderAllUserOrderByState,
@@ -248,6 +283,14 @@ const STATE_MAP = {
 }
 const stateText = (s) => STATE_MAP[String(s)]?.text ?? '未知状态'
 const stateTagType = (s) => STATE_MAP[String(s)]?.type ?? 'danger'
+
+// 顶部概览统计（来自各状态数量缓存）
+const sumCount = (prefix, states) =>
+  states.reduce((acc, s) => acc + (Number(countMap[prefix + s]) || 0), 0)
+const senderTotal = computed(() => sumCount('sender_', ['0', '1', '2', '3']))
+const getterTotal = computed(() => sumCount('getter_', ['1', '2', '3']))
+const ongoingTotal = computed(() => sumCount('sender_', ['0', '1']) + sumCount('getter_', ['1']))
+const finishedTotal = computed(() => sumCount('sender_', ['2']) + sumCount('getter_', ['2']))
 
 const senderStates = [
   { value: 'all', label: '全部' },
@@ -479,21 +522,16 @@ onMounted(async () => {
 <style scoped>
 .my-orders-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--content-bg);
 }
-.page-header { padding: 16px 24px 0; }
-.header-card { border-radius: 12px; }
-.header-inner {
-  display: flex; align-items: center; justify-content: space-between;
+.page-header { padding: 24px 24px 0; max-width: 1440px; margin: 0 auto; }
+.banner-back {
+  color: rgba(255, 255, 255, .9) !important;
 }
-.page-title {
-  margin: 0; font-size: 20px; font-weight: 700;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+.banner-back:hover {
+  color: #fff !important;
 }
-.page-body { padding: 20px 24px 40px; }
+.page-body { padding: 16px 24px 40px; max-width: 1440px; margin: 0 auto; }
 
 .state-tags {
   display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 2px;

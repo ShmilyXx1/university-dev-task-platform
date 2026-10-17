@@ -228,13 +228,13 @@ onBeforeUnmount(() => {
 }
 .msg-row.other .msg-content {
   background: #fff;
-  color: #303133;
+  color: var(--text-primary);
   border: 1px solid var(--border-light);
   box-shadow: 0 2px 8px rgba(16, 24, 40, .05);
 }
 .msg-time {
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 .send-area {
@@ -245,7 +245,7 @@ onBeforeUnmount(() => {
 }
 .empty-tip {
   text-align: center;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 60px;
 }
 </style>

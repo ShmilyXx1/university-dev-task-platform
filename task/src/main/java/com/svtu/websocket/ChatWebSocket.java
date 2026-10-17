@@ -478,9 +478,36 @@ public class ChatWebSocket {
             chatMessageMapper.insert(msg);
             // 维护 Redis 未读计数：key=接收者, field=发送者
             redisUtil.hIncrBy("unread:" + toUserId, String.valueOf(fromUserId), 1);
+            // 实时推送未读总数给接收方，前端铃铛数字即时刷新
+            pushUnreadNotify(toUserId);
         } catch (Exception e) {
             log.error("聊天消息落库失败", e);
         }
+    }
+
+    /**
+     * 推送未读消息总数给指定用户（对方离线则不推，重连后由 REST 接口拉取）
+     */
+    private static void pushUnreadNotify(int userId) {
+        Session receiver = allSessionMap.get(userId);
+        if (receiver == null || !receiver.isOpen()) return;
+        MsgDTO notify = new MsgDTO("notify_unread", null);
+        notify.setTotalUnread(getTotalUnread(userId));
+        sendMsg(receiver, notify);
+    }
+
+    /**
+     * 汇总某用户所有会话的未读消息数
+     */
+    private static int getTotalUnread(int userId) {
+        int total = 0;
+        for (String v : redisUtil.hGetAll("unread:" + userId).values()) {
+            try {
+                total += Integer.parseInt(v);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return total;
     }
 
     /**
@@ -554,6 +581,7 @@ public class ChatWebSocket {
         private int peerId;        // 会话对方id
         private String peerName;   // 会话对方昵称
         private int position;      // 排队位置/人数
+        private int totalUnread;   // 未读消息总数（notify_unread 用）
         private String time;       // 消息时间
         private String token;
         private String cmd;
@@ -589,6 +617,8 @@ public class ChatWebSocket {
         public void setPeerName(String peerName) { this.peerName = peerName; }
         public int getPosition() { return position; }
         public void setPosition(int position) { this.position = position; }
+        public int getTotalUnread() { return totalUnread; }
+        public void setTotalUnread(int totalUnread) { this.totalUnread = totalUnread; }
         public String getTime() { return time; }
         public void setTime(String time) { this.time = time; }
         public String getToken() { return token; }

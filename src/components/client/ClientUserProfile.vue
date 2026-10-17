@@ -7,7 +7,19 @@
       </el-header>
 
       <el-main class="page-main">
-        <el-card v-loading="loading" class="profile-card" shadow="hover">
+        <div class="profile-wrap">
+          <div class="page-banner">
+            <div>
+              <div class="banner-badge">用户主页 · USER PROFILE</div>
+              <div class="banner-title">{{ user?.username || '用户信息' }}</div>
+              <div class="banner-sub">查看用户公开资料，可直接发起点对点私信沟通</div>
+            </div>
+            <div class="banner-actions">
+              <span v-if="user?.position" class="banner-chip">{{ user.position }}</span>
+            </div>
+          </div>
+
+          <el-card v-loading="loading" class="profile-card" shadow="never">
           <div v-if="user" class="profile-content">
             <!-- 头像 + 基本信息 -->
             <div class="user-header">
@@ -41,7 +53,8 @@
           <div v-else-if="!loading" class="empty-state">
             用户不存在
           </div>
-        </el-card>
+          </el-card>
+        </div>
       </el-main>
     </el-container>
   </div>
@@ -139,13 +152,16 @@ onMounted(loadUser)
 }
 .page-main {
   background: var(--content-bg);
-  padding: 20px;
+  padding: 24px;
 }
-.profile-card {
-  width: 680px;
+.profile-wrap {
+  width: 760px;
   max-width: 100%;
   margin: 0 auto;
-  border-radius: var(--radius);
+}
+.profile-card {
+  width: 100%;
+  border-radius: 16px;
   box-shadow: var(--shadow);
 }
 .header-title {
@@ -161,7 +177,7 @@ onMounted(loadUser)
 .empty-state {
   text-align: center;
   padding: 40px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .profile-content {

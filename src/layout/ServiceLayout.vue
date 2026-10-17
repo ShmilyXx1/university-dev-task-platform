@@ -37,6 +37,16 @@
 
       <!-- 页面内容区域 -->
       <el-main class="layout-main">
+        <div class="page-banner">
+          <div>
+            <div class="banner-badge">客服工作台 · SERVICE DESK</div>
+            <div class="banner-title">{{ pageTitle }}</div>
+            <div class="banner-sub">{{ pageSub }}</div>
+          </div>
+          <div class="banner-actions">
+            <span class="banner-chip">{{ userStore.adminName || '客服' }}</span>
+          </div>
+        </div>
         <router-view />
       </el-main>
     </el-container>
@@ -44,12 +54,23 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 import router from '../router'
 import NotificationBell from '../components/NotificationBell.vue'
 
 const userStore = useUserStore()
+const route = useRoute()
+
+const PAGE_META = {
+  '/serviceMain': { title: '用户聊天', sub: '接入用户咨询，支持排队分配与实时消息提醒' },
+  '/serviceOrder': { title: '订单管理', sub: '查询平台订单，协助用户核对订单状态与交付情况' },
+  '/serviceFeedback': { title: '问题反馈', sub: '查看用户反馈并进行回复处理' }
+}
+const pageTitle = computed(() => PAGE_META[route.path]?.title || '客服工作台')
+const pageSub = computed(() => PAGE_META[route.path]?.sub || '在线会话与反馈处理')
 const handleLogout = () => {
   ElMessage.success('已退出登录')
   userStore.logout();
@@ -86,7 +107,7 @@ const handleLogout = () => {
   height: 22px;
   border-radius: 7px;
   background: var(--gradient-primary);
-  box-shadow: 0 4px 12px rgba(64, 128, 255, .5);
+  box-shadow: 0 4px 12px rgba(79, 107, 254, .5);
 }
 
 .layout-header {
@@ -111,7 +132,7 @@ const handleLogout = () => {
 
 .header-username {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-regular);
   font-weight: 500;
 }
 

@@ -18,7 +18,7 @@
         <el-button link size="small" @click="markAll" :disabled="!chatStore.hasUnread">全部已读</el-button>
       </div>
       <div v-if="chatStore.details.length === 0" class="notif-empty">
-        <el-icon :size="36" color="#c0c4cc"><Bell /></el-icon>
+        <el-icon :size="36" color="var(--text-muted)"><Bell /></el-icon>
         <div class="notif-empty-text">暂无新消息</div>
       </div>
       <div v-else class="notif-list">
@@ -95,7 +95,7 @@ onMounted(() => {
   background: var(--primary-light);
 }
 .bell-icon {
-  color: #606266;
+  color: var(--text-regular);
   transition: color 0.2s;
 }
 .bell-trigger:hover .bell-icon {
@@ -122,7 +122,7 @@ onMounted(() => {
 }
 .notif-empty-text {
   margin-top: 8px;
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
 }
 .notif-list {
@@ -149,12 +149,12 @@ onMounted(() => {
 }
 .notif-name {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-primary);
   font-weight: 500;
 }
 .notif-sub {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 </style>

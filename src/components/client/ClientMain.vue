@@ -5,7 +5,7 @@
       <el-header class="page-header">
         <span class="brand">
           <span class="brand-logo"><el-icon><UserFilled /></el-icon></span>
-          <span class="page-title">软件开发接单客户端</span>
+          <span class="page-title">软件开发众包在线接单平台</span>
         </span>
 
         <div class="header-right">
@@ -32,39 +32,100 @@
 
       <!-- 页面内容区域 -->
       <el-main class="page-main">
-        <!-- Hero 欢迎区 -->
-        <div class="hero-card">
-          <div class="hero-deco" aria-hidden="true"></div>
+        <!-- Hero 概览区 -->
+        <section class="hero-card">
+          <div class="hero-deco hero-deco-1" aria-hidden="true"></div>
+          <div class="hero-deco hero-deco-2" aria-hidden="true"></div>
           <div class="hero-left">
-            <el-avatar :size="62" :src="userStore.avatarUrl" class="hero-avatar">
+            <el-avatar :size="64" :src="userStore.avatarUrl" class="hero-avatar">
               {{ userStore.username ? userStore.username.charAt(0).toUpperCase() : 'U' }}
             </el-avatar>
             <div class="hero-info">
+              <div class="hero-badge">
+                <el-icon><TrendCharts /></el-icon>
+                软件开发众包 · 需求大厅
+              </div>
               <div class="hero-greeting">欢迎回来，<b>{{ userStore.username || '用户' }}</b></div>
-              <div class="hero-sub">悬赏任务客户端 · 大厅待接订单</div>
+              <div class="hero-sub">挑选合适的需求，一口价接单，交付成果后由平台审核结算</div>
             </div>
           </div>
+
           <div class="hero-stats">
             <div class="stat-item">
-              <span class="stat-num">{{ orderList.length }}</span>
-              <span class="stat-label">待接取</span>
+              <span class="stat-icon"><el-icon><Tickets /></el-icon></span>
+              <div class="stat-body">
+                <span class="stat-num">{{ stats.total }}</span>
+                <span class="stat-label">待接取需求</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="stat-icon"><el-icon><Money /></el-icon></span>
+              <div class="stat-body">
+                <span class="stat-num">¥{{ stats.avg }}</span>
+                <span class="stat-label">平均赏金</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="stat-icon"><el-icon><GoldMedal /></el-icon></span>
+              <div class="stat-body">
+                <span class="stat-num">¥{{ stats.max }}</span>
+                <span class="stat-label">最高赏金</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="stat-icon"><el-icon><CollectionTag /></el-icon></span>
+              <div class="stat-body">
+                <span class="stat-num">{{ stats.types }}</span>
+                <span class="stat-label">需求类型</span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        <!-- 快捷入口 -->
+        <section class="quick-grid">
+          <button class="quick-card" @click="goAddOrder">
+            <span class="quick-icon quick-icon-blue"><el-icon><Plus /></el-icon></span>
+            <span class="quick-text">
+              <b>发布需求</b>
+              <small>填写要求并托管赏金</small>
+            </span>
+          </button>
+          <button class="quick-card" @click="router.push('/clientMyOrders')">
+            <span class="quick-icon quick-icon-green"><el-icon><Tickets /></el-icon></span>
+            <span class="quick-text">
+              <b>我的订单</b>
+              <small>查看发布与接取记录</small>
+            </span>
+          </button>
+          <button class="quick-card" @click="router.push('/clientChat')">
+            <span class="quick-icon quick-icon-purple"><el-icon><ChatDotRound /></el-icon></span>
+            <span class="quick-text">
+              <b>联系客服</b>
+              <small>在线咨询排队接入</small>
+            </span>
+          </button>
+          <button class="quick-card" @click="router.push('/clientFeedback')">
+            <span class="quick-icon quick-icon-orange"><el-icon><EditPen /></el-icon></span>
+            <span class="quick-text">
+              <b>问题反馈</b>
+              <small>提交建议与问题</small>
+            </span>
+          </button>
+        </section>
 
         <!-- 大厅订单列表，仅显示未接取的订单 -->
-        <el-card shadow="hover">
+        <el-card shadow="never" class="hall-card">
           <template #header>
             <div class="card-header-bar">
               <div class="card-header-left">
-                <span class="card-title">大厅 - 待接取订单</span>
-                <el-button type="primary" :icon="Plus" @click="goAddOrder">发布订单</el-button>
+                <span class="card-title">需求大厅</span>
+                <span class="count-pill">{{ orderList.length }} 个待接取</span>
               </div>
               <div class="card-header-right">
-                <!-- 搜索框 -->
                 <el-input
                   v-model="searchKeyword"
-                  placeholder="按订单ID/标题/内容搜索/订单类型/用户名"
+                  placeholder="搜索订单ID / 标题 / 内容 / 类型 / 发布人"
                   clearable
                   class="search-input"
                   @keyup.enter="doSearch"
@@ -77,123 +138,124 @@
                 <el-button type="primary" @click="doSearch">
                   <el-icon class="btn-icon"><Search /></el-icon>搜索
                 </el-button>
-                <el-button @click="resetAll">
-                  <el-icon class="btn-icon"><RefreshLeft /></el-icon>重置
-                </el-button>
+                <el-button :icon="RefreshLeft" @click="resetAll">重置</el-button>
               </div>
             </div>
           </template>
 
           <!-- 筛选面板 -->
           <div class="filter-panel">
-            <div class="filter-row">
-              <span class="filter-label">筛选:</span>
+            <div class="type-row">
+              <span class="filter-label">需求类型</span>
+              <button
+                class="chip"
+                :class="{ active: !filter.type }"
+                @click="selectType('')"
+              >全部</button>
+              <button
+                v-for="t in typeOptions"
+                :key="t"
+                class="chip"
+                :class="{ active: filter.type === t }"
+                @click="selectType(t)"
+              >{{ t }}</button>
+            </div>
 
-              <!-- 类型 -->
-              <el-select
-                v-model="filter.type"
-                placeholder="订单类型"
-                clearable
-                class="filter-select"
-                @change="doFilter"
-              >
-                <el-option label="编程" value="编程"/>
-                <el-option label="学习" value="学习"/>
-                <el-option label="设计" value="设计"/>
-                <el-option label="翻译" value="翻译"/>
-                <el-option label="其他" value="其他"/>
-              </el-select>
-
-              <!-- 最低价 -->
+            <div class="price-row">
+              <span class="filter-label">赏金范围</span>
               <el-input-number
                 v-model="filter.minPrice"
                 :min="0"
-                :precision="2"
-                placeholder="最低价"
+                :precision="0"
+                placeholder="最低"
                 controls-position="right"
-                size="default"
               />
-
-              <!-- 最高价 -->
+              <span class="price-sep">至</span>
               <el-input-number
                 v-model="filter.maxPrice"
                 :min="0"
-                :precision="2"
-                placeholder="最高价"
+                :precision="0"
+                placeholder="最高"
                 controls-position="right"
-                size="default"
               />
-
-              <!-- 排序切换按钮: 未点击(默认) → 点击升序asc → 再点降序desc -->
               <el-button
                 :type="sortState === 'none' ? 'default' : 'success'"
                 :icon="sortIcon"
                 @click="cycleSort"
               >
-                按发布价{{ sortLabel }}
+                按赏金{{ sortLabel }}
               </el-button>
-
               <el-button type="primary" plain @click="doFilter">
                 <el-icon class="btn-icon"><Filter /></el-icon>应用筛选
               </el-button>
+              <el-button v-if="activeFilters" link type="primary" @click="clearFilter">清除筛选</el-button>
             </div>
 
             <!-- 当前筛选信息 -->
             <div v-if="activeFilters" class="active-filters">
-              <el-tag size="small" effect="plain">{{ activeFilters }}</el-tag>
-              <el-button link type="primary" size="small" @click="clearFilter">清除筛选</el-button>
+              <el-icon><Filter /></el-icon>
+              <span>{{ activeFilters }}</span>
             </div>
           </div>
 
-          <el-table :data="orderList" border stripe v-loading="loading" class="order-table">
-            <el-table-column prop="orderId" label="订单ID" width="80"/>
-            <el-table-column prop="title" label="订单标题"/>
-            <el-table-column prop="content" label="订单内容" show-overflow-tooltip/>
-            <el-table-column prop="type" label="订单类型" width="110"/>
-            <el-table-column prop="senderPrice" label="发布方报价" width="110"/>
-            <el-table-column prop="deposit" label="押金" width="100">
+          <el-table :data="orderList" v-loading="loading" class="order-table">
+            <el-table-column label="需求信息" min-width="280">
               <template #default="scope">
-                {{ scope.row.deposit != null ? scope.row.deposit : '—' }}
+                <div class="order-cell">
+                  <div class="order-title">
+                    <span class="order-id">#{{ scope.row.orderId }}</span>
+                    {{ scope.row.title }}
+                  </div>
+                  <div class="order-desc">{{ scope.row.content || '暂无需求描述' }}</div>
+                </div>
               </template>
             </el-table-column>
-            <el-table-column prop="senderName" label="发布人" width="110">
+            <el-table-column label="类型" width="100">
+              <template #default="scope">
+                <span class="type-tag">{{ scope.row.type || '其他' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="赏金" width="110">
+              <template #default="scope">
+                <span class="price-text">¥{{ formatAmount(scope.row.senderPrice) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="押金" width="100">
+              <template #default="scope">
+                <span v-if="Number(scope.row.deposit) > 0" class="deposit-text">¥{{ formatAmount(scope.row.deposit) }}</span>
+                <span v-else class="text-muted">无押金</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="发布人" width="120">
               <template #default="scope">
                 <el-button v-if="scope.row.senderName" link type="primary" @click.stop="goUserProfile(scope.row.senderName)">
                   {{ scope.row.senderName }}
                 </el-button>
-                <span v-else>—</span>
+                <span v-else class="text-muted">—</span>
               </template>
             </el-table-column>
-            <el-table-column prop="getterName" label="接单人" width="110">
+            <el-table-column label="截止时间" width="170">
               <template #default="scope">
-                <el-button v-if="scope.row.getterName" link type="primary" @click.stop="goUserProfile(scope.row.getterName)">
-                  {{ scope.row.getterName }}
-                </el-button>
-                <span v-else>—</span>
+                <span class="time-text">{{ formatDate(scope.row.endDatetime) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="订单状态" width="120">
+            <el-table-column label="状态" width="110">
               <template #default="scope">
-                <el-tag :type="stateTagType(scope.row.state)">
+                <el-tag :type="stateTagType(scope.row.state)" effect="light" round>
                   {{ stateText(scope.row.state) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="发布时间" width="170">
+            <el-table-column label="操作" width="110" fixed="right">
               <template #default="scope">
-                {{ formatDate(scope.row.releaseDatetime) }}
+                <el-button class="detail-btn" size="small" round @click="goDetail(scope.row.orderId)">
+                  查看详情<el-icon class="btn-arrow"><ArrowRight /></el-icon>
+                </el-button>
               </template>
             </el-table-column>
-            <el-table-column label="结束时间" width="170">
-              <template #default="scope">
-                {{ formatDate(scope.row.endDatetime) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
-              <template #default="scope">
-                <el-button type="primary" link @click="goDetail(scope.row.orderId)">查看详情</el-button>
-              </template>
-            </el-table-column>
+            <template #empty>
+              <el-empty description="暂无待接取的需求，去发布一个吧" :image-size="90" />
+            </template>
           </el-table>
         </el-card>
       </el-main>
@@ -205,7 +267,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '../../stores/user'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, UserFilled, Plus, Search, RefreshLeft, Filter, Sort, Bottom, Top } from '@element-plus/icons-vue'
+import { ArrowDown, UserFilled, Plus, Search, RefreshLeft, Filter, Sort, Bottom, Top, ArrowRight, TrendCharts, Tickets, Money, GoldMedal, CollectionTag, ChatDotRound, EditPen } from '@element-plus/icons-vue'
 import router from '../../router'
 import { selectAllOrder, searchOrder, filterOrders } from '../../api/order'
 import NotificationBell from '../../components/NotificationBell.vue'
@@ -223,6 +285,28 @@ const STATE_MAP = {
 }
 const stateText = (s) => STATE_MAP[String(s)]?.text ?? '未知状态'
 const stateTagType = (s) => STATE_MAP[String(s)]?.type ?? 'danger'
+
+// 需求类型快捷筛选
+const typeOptions = ['编程', '学习', '设计', '翻译', '其他']
+
+// 顶部概览统计
+const stats = computed(() => {
+  const list = orderList.value || []
+  const prices = list.map((o) => Number(o.senderPrice) || 0)
+  const total = prices.reduce((a, b) => a + b, 0)
+  return {
+    total: list.length,
+    avg: prices.length ? Math.round(total / prices.length) : 0,
+    max: prices.length ? Math.max(...prices) : 0,
+    types: new Set(list.map((o) => o.type).filter(Boolean)).size
+  }
+})
+
+const formatAmount = (val) => {
+  const num = Number(val)
+  if (Number.isNaN(num)) return '0'
+  return Number.isInteger(num) ? num : num.toFixed(2)
+}
 
 // ============ 搜索 + 筛选 状态 ============
 const searchKeyword = ref('')
@@ -327,6 +411,12 @@ const doFilter = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 类型标签点击筛选
+const selectType = (t) => {
+  filter.type = t
+  doFilter()
 }
 
 const clearFilter = () => {
@@ -466,70 +556,89 @@ onMounted(()=>{
 .user-name {
   margin-left: 8px;
   font-size: 14px;
-  color: #606266;
+  color: var(--text-regular);
   font-weight: 500;
 }
 
 .page-main {
   background: var(--content-bg);
-  padding: 20px;
+  padding: 24px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
 }
 
-/* Hero 欢迎区：仪表盘风格 */
+/* ============ Hero 概览区 ============ */
 .hero-card {
   position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 28px;
   overflow: hidden;
-  background: var(--gradient-primary);
-  padding: 22px 26px;
-  border-radius: 16px;
+  background: linear-gradient(120deg, #3F54E6 0%, #4F6BFE 45%, #38BDF8 100%);
+  padding: 30px 34px;
+  border-radius: 20px;
   margin-bottom: 18px;
-  box-shadow: 0 14px 30px -12px rgba(64, 128, 255, .6);
+  box-shadow: 0 20px 40px -18px rgba(63, 84, 230, .65);
 }
 .hero-deco {
   position: absolute;
-  right: -60px;
-  top: -80px;
-  width: 260px;
-  height: 260px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .12);
   pointer-events: none;
 }
-.hero-card::before {
-  content: '';
-  position: absolute;
-  right: 90px;
-  bottom: -70px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
+.hero-deco-1 {
+  right: -70px;
+  top: -100px;
+  width: 280px;
+  height: 280px;
+  background: rgba(255, 255, 255, .13);
+}
+.hero-deco-2 {
+  right: 200px;
+  bottom: -110px;
+  width: 190px;
+  height: 190px;
   background: rgba(255, 255, 255, .08);
-  pointer-events: none;
 }
 .hero-left {
   position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
+  min-width: 0;
 }
 .hero-avatar {
-  background: rgba(255, 255, 255, .25);
-  border: 2px solid rgba(255, 255, 255, .7);
+  flex: none;
+  background: rgba(255, 255, 255, .22);
+  border: 2px solid rgba(255, 255, 255, .65);
   color: #fff;
-  font-size: 22px;
+  font-size: 23px;
   font-weight: 700;
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .35);
 }
 .hero-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .18);
+  border: 1px solid rgba(255, 255, 255, .25);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: .3px;
 }
 .hero-greeting {
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 700;
   color: #fff;
   letter-spacing: .3px;
@@ -545,115 +654,330 @@ onMounted(()=>{
 .hero-stats {
   position: relative;
   z-index: 1;
-  display: flex;
-  gap: 28px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(96px, 1fr));
+  gap: 10px;
 }
 .stat-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 6px 18px;
-  border-left: 1px solid rgba(255, 255, 255, .35);
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .14);
+  border: 1px solid rgba(255, 255, 255, .22);
+  backdrop-filter: blur(6px);
+}
+.stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .2);
+  color: #fff;
+  font-size: 17px;
+}
+.stat-body {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
 }
 .stat-num {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 800;
   color: #fff;
-  line-height: 1.1;
+  white-space: nowrap;
 }
 .stat-label {
-  margin-top: 2px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, .8);
+  font-size: 11px;
+  color: rgba(255, 255, 255, .78);
+  white-space: nowrap;
 }
 
+/* ============ 快捷入口 ============ */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.quick-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.quick-card:hover {
+  transform: translateY(-3px);
+  border-color: #D7DEFF;
+  box-shadow: var(--shadow-hover);
+}
+.quick-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 12px;
+  font-size: 19px;
+}
+.quick-icon-blue { background: #EEF1FF; color: #4F6BFE; }
+.quick-icon-green { background: #EAF8F0; color: #21A56B; }
+.quick-icon-purple { background: #F3EEFF; color: #7C5CFC; }
+.quick-icon-orange { background: #FFF3E8; color: #E8871E; }
+.quick-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.quick-text b {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.quick-text small {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ============ 大厅卡片 ============ */
+.hall-card {
+  border-radius: 16px;
+}
 .card-header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
-
 .card-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
-
 .card-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-primary);
 }
 .card-title::before {
   content: '';
   width: 4px;
-  height: 15px;
+  height: 16px;
   border-radius: 3px;
   background: var(--gradient-primary);
 }
-
+.count-pill {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
 .card-header-right {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
-
 .search-input {
-  width: 360px;
+  width: 340px;
 }
 
+/* ============ 筛选面板 ============ */
 .filter-panel {
-  background: var(--primary-lighter);
-  border: 1px solid #e4eeff;
-  border-radius: var(--radius);
+  background: #FAFBFE;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
   padding: 14px 16px;
-  margin: 0 0 4px;
-}
-.filter-row {
+  margin-bottom: 14px;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 12px;
+}
+.type-row,
+.price-row {
+  display: flex;
   align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
 .filter-label {
+  font-size: 12px;
   font-weight: 600;
-  color: #606266;
-  margin-right: 4px;
+  color: var(--text-muted);
+  letter-spacing: .3px;
+  flex: none;
+}
+.chip {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-regular);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.chip:hover {
+  border-color: #C4CFFF;
+  color: var(--primary);
+}
+.chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 10px -4px rgba(79, 107, 254, .55);
+}
+.price-sep {
+  color: var(--text-muted);
+  font-size: 13px;
 }
 .active-filters {
-  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ============ 表格 ============ */
+.order-table {
+  margin-top: 2px;
+}
+:deep(.order-table) {
+  border-radius: 12px;
+  overflow: hidden;
+}
+:deep(.order-table th.el-table__cell) {
+  background: #F7F8FC;
+  font-weight: 600;
+  color: var(--text-regular);
+  height: 46px;
+}
+:deep(.order-table .el-table__row) {
+  transition: background .18s ease;
+}
+:deep(.order-table .el-table__row:hover > td) {
+  background: #F6F8FF !important;
+}
+:deep(.order-table .el-table__cell) {
+  padding: 12px 0;
+}
+.order-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.order-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.order-table {
-  margin-top: 12px;
-}
-:deep(.order-table) {
-  border-radius: 10px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-:deep(.order-table .el-table__row:hover > td) {
-  background: var(--primary-lighter) !important;
+.order-id {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #F0F2F8;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
 }
-:deep(.order-table th.el-table__cell) {
-  background: linear-gradient(180deg, #f3f7ff 0%, #eaf1ff 100%);
+.order-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.type-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #EEF1FF;
+  color: #4F6BFE;
+  font-size: 12px;
+  font-weight: 500;
+}
+.price-text {
+  color: #F0564A;
+  font-size: 15px;
+  font-weight: 700;
+}
+.deposit-text {
+  color: #E6A23C;
   font-weight: 600;
-  color: #2b3a55;
+}
+.text-muted {
+  color: var(--text-muted);
+}
+.time-text {
+  color: var(--text-regular);
+  font-size: 13px;
+}
+.detail-btn {
+  border-color: #D7DEFF;
+  color: var(--primary);
+  background: #F7F9FF;
+}
+.detail-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.btn-arrow {
+  margin-left: 2px;
+  font-size: 12px;
 }
 .btn-icon {
   margin-right: 4px;
 }
-.filter-select {
-  width: 130px;
-}
 :deep(.el-input-number) {
-  width: 130px;
+  width: 108px;
+}
+
+/* 窄屏适配 */
+@media (max-width: 1180px) {
+  .hero-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .search-input {
+    width: 240px;
+  }
 }
 </style>

@@ -254,7 +254,7 @@ onMounted(loadOrders)
 .card-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .btn-icon {
@@ -280,7 +280,7 @@ onMounted(loadOrders)
 }
 
 .text-muted {
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .content-text {

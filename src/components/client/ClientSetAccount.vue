@@ -9,7 +9,7 @@
 
     <el-card class="login-card" shadow="hover">
       <div class="card-header">
-        <el-icon class="login-icon" color="#409EFF" size="42"><Key /></el-icon>
+        <el-icon class="login-icon" size="42"><Key /></el-icon>
         <h1 class="login-title">设置账号</h1>
       </div>
 
@@ -157,10 +157,10 @@ const doRegister = async () => {
 .reset-page {
   min-height: 100vh;
   background:
-    radial-gradient(900px 480px at 12% -8%, rgba(64, 128, 255, .22), transparent 60%),
-    radial-gradient(760px 420px at 105% 12%, rgba(54, 207, 201, .18), transparent 55%),
-    radial-gradient(700px 500px at 50% 120%, rgba(64, 128, 255, .14), transparent 60%),
-    linear-gradient(135deg, #eef3ff 0%, #e3eeff 100%);
+    radial-gradient(900px 480px at 12% -8%, rgba(79, 107, 254, .14), transparent 60%),
+    radial-gradient(760px 420px at 105% 12%, rgba(56, 189, 248, .12), transparent 55%),
+    radial-gradient(700px 500px at 50% 120%, rgba(79, 107, 254, .10), transparent 60%),
+    linear-gradient(135deg, #eef1ff 0%, #e9edff 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -212,9 +212,8 @@ const doRegister = async () => {
   margin-bottom: 30px;
 }
 .login-title {
-  font-size: 26px;
-  font-weight: 600;
-  color: #303133;
+  font-size: 24px;
+  font-weight: 700;
   margin: 0;
 }
 
@@ -245,7 +244,7 @@ const doRegister = async () => {
 }
 
 .avatar-uploader :deep(.el-upload) {
-  border: 1px dashed #d9d9d9;
+  border: 1px dashed var(--border);
   border-radius: 6px;
   cursor: pointer;
   position: relative;
@@ -262,7 +261,7 @@ const doRegister = async () => {
 }
 .avatar-uploader-icon {
   font-size: 28px;
-  color: #8c939d;
+  color: var(--text-muted);
 }
 .avatar-image {
   width: 120px;
@@ -271,7 +270,7 @@ const doRegister = async () => {
   display: block;
 }
 .upload-tip {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 12px;
   margin-top: 8px;
   text-align: left;

@@ -226,7 +226,7 @@ onBeforeUnmount(() => {
 .card-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .header-tags {
@@ -260,11 +260,11 @@ onBeforeUnmount(() => {
   margin: 16px 0 8px;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .idle-desc {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
   margin-bottom: 20px;
 }
@@ -275,7 +275,7 @@ onBeforeUnmount(() => {
 
 .empty-hint {
   text-align: center;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 60px;
 }
 
@@ -313,7 +313,7 @@ onBeforeUnmount(() => {
 .msg-row.user .msg-content {
   background: #fff;
   border: 1px solid var(--border-light);
-  color: #303133;
+  color: var(--text-primary);
   box-shadow: 0 2px 8px rgba(16, 24, 40, .05);
 }
 .msg-row.service .msg-content {
@@ -323,7 +323,7 @@ onBeforeUnmount(() => {
 }
 .msg-time {
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 .send-area {

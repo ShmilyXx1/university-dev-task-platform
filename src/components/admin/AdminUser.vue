@@ -450,7 +450,7 @@ onMounted(loadUsers)
   margin-bottom: 8px;
 }
 .muted-text {
-  color: #909399;
+  color: var(--text-muted);
 }
 .role-divider {
   margin: 8px 0;
