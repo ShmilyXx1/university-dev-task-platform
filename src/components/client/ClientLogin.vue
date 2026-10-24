@@ -30,6 +30,15 @@
         <router-link to="/clientRegister" class="link-btn">注册账号</router-link>
         <router-link to="/clientForgetPassword" class="link-btn">忘记密码？</router-link>
       </div>
+
+      <!-- 管理端入口 -->
+      <div class="admin-entry">
+        <span class="admin-entry-label">管理员 / 审核员 / 客服</span>
+        <el-button link type="primary" class="admin-entry-btn" @click="goAdminLogin">
+          进入管理端登录
+          <el-icon><ArrowRight /></el-icon>
+        </el-button>
+      </div>
     </el-card>
   </div>
 </template>
@@ -39,10 +48,12 @@ import { ref } from 'vue'
 import { useUserStore } from '../../stores/user'
 import { useRouter } from 'vue-router'
 import { clientLogin, getUserInfo } from '../../api/user'
-import { UserFilled, CircleCloseFilled, User, Lock } from '@element-plus/icons-vue'
+import { UserFilled, CircleCloseFilled, User, Lock, ArrowRight } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+const goAdminLogin = () => router.push('/login')
 
 const loginForm = ref({ phone: '', password: '' })
 const errMessage = ref('')
@@ -180,5 +191,27 @@ const handleLogin = async () => {
 }
 .link-btn:hover {
   text-decoration: underline;
+}
+
+.admin-entry {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.admin-entry-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: .2px;
+}
+.admin-entry-btn {
+  font-size: 13px;
+  font-weight: 500;
+}
+.admin-entry-btn .el-icon {
+  margin-left: 2px;
 }
 </style>

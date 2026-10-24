@@ -2,23 +2,31 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.svtu.mapper.ChatMessageMapper">
 
-    <!-- 查询两人之间的聊天历史（双向，最多返回最近200条） -->
+    <!-- 查询两人之间的聊天历史（双向，最多返回最近200条；msgType 区分客服/私信） -->
     <select id="selectHistory" resultType="com.svtu.entity.ChatMessage">
         select message_id, from_user_id, to_user_id, msg_type, content, is_read, send_datetime
         from t_chat_message
-        where (from_user_id = #{me} and to_user_id = #{peer})
-           or (from_user_id = #{peer} and to_user_id = #{me})
-        order by send_datetime asc
+        where ((from_user_id = #{me} and to_user_id = #{peer})
+           or (from_user_id = #{peer} and to_user_id = #{me}))
+        <choose>
+            <when test="msgType == 'p2p'">
+                and msg_type = 'p2p'
+            </when>
+            <when test="msgType == 'service'">
+                and (msg_type = 'service' or msg_type = 'chat' or msg_type is null)
+            </when>
+        </choose>
+        order by send_datetime desc
         limit 200
     </select>
 
-    <!-- 查询某用户的未读消息（按发送者分组统计） -->
+    <!-- 查询某用户的未读消息（按发送者 + 消息类型分组统计） -->
     <select id="selectUnreadCountByFrom" resultType="java.util.Map">
-        select from_user_id as fromUserId, count(*) as cnt
+        select from_user_id as fromUserId, msg_type as msgType, count(*) as cnt
         from t_chat_message
         where to_user_id = #{userId}
           and is_read = 0
-        group by from_user_id
+        group by from_user_id, msg_type
     </select>
 
     <!-- 将某人发来的消息标记为已读 -->

@@ -442,14 +442,23 @@ const copyContactInfo = async () => {
   contactVisible.value = false
 }
 
-const sendContactMsg = async () => {
-  // TODO: 若后端有站内信/消息接口，这里对接即可；目前先兜底展示"已发送（本地）"
-  if (!detail.value?.senderName) return
-  ElMessage.success({
-    message: `消息已发送给【${detail.value.senderName}】（如对接站内信接口可替换为真实发送）`,
-    duration: 2500
-  })
+const sendContactMsg = () => {
+  const peerId = detail.value?.senderId
+  if (!peerId) {
+    ElMessage.error('未获取到发单人信息，无法发起私信')
+    return
+  }
+  const content = contactMsg.value.trim()
   contactVisible.value = false
+  // 跳转到私信页，把留言内容带过去预填
+  router.push({
+    path: '/clientP2PChat',
+    query: {
+      peerId,
+      peerName: detail.value.senderName,
+      ...(content ? { content } : {})
+    }
+  })
 }
 
 // 接单（有押金时先走支付宝支付押金，支付成功后结果页会自动接单）

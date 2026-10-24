@@ -128,7 +128,7 @@ const sendMessage = () => {
 // 拉历史
 const loadHistory = async (pid) => {
   try {
-    const res = await getChatHistory({ peerId: pid })
+    const res = await getChatHistory({ peerId: pid, msgType: 'service' })
     msgList.value = (res.data || []).map((m) => ({
       from: m.fromUserId === userStore.userId ? 'service' : 'user',
       content: m.content,

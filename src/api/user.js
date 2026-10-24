@@ -24,6 +24,16 @@ export function clientLogin(data) {
 }
 
 /**
+ * 退出登录
+ * POST /user/logout
+ * 后端删除 Redis 中的 login:{userId} 会话缓存，旧令牌随即失效
+ * @param {string} token - 当前令牌（显式传入，避免 store 已清空后再取不到）
+ */
+export function logoutApi(token) {
+  return request({ url: '/user/logout', method: 'post', headers: { token } })
+}
+
+/**
  * 注册 - 获取验证码
  * GET /user/registerGetCode?phone=xxx
  */

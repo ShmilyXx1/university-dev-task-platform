@@ -108,6 +108,37 @@ public class RedisUtil {
         return Boolean.TRUE.equals(redisTemplate.delete(key));
     }
 
+    // ==================== 登录失败计数（字符串操作） ====================
+
+    /**
+     * 自增计数，并在首次创建时设置过期时间（用于登录失败次数限制）。
+     * 走 StringRedisTemplate，要求值为纯数字字符串。
+     * @param key 键（如 login:fail:{phone}）
+     * @param seconds 过期时间（秒）
+     * @return 自增后的值
+     */
+    public long incrWithExpire(String key, long seconds) {
+        Long value = stringRedisTemplate.opsForValue().increment(key);
+        if (value != null && value == 1L) {
+            stringRedisTemplate.expire(key, seconds, TimeUnit.SECONDS);
+        }
+        return value == null ? 0L : value;
+    }
+
+    /**
+     * 获取字符串缓存
+     */
+    public String getString(String key) {
+        return stringRedisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * 删除字符串缓存
+     */
+    public void deleteString(String key) {
+        stringRedisTemplate.delete(key);
+    }
+
     // ==================== 分布式锁（SETNX + 过期） ====================
 
     /**

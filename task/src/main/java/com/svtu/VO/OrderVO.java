@@ -8,6 +8,7 @@ import java.util.Date;
 @Data
 public class OrderVO {
     private int orderId;
+    private int senderId;      // 发单人 userId（用于私信）
     private String senderName;
     private String getterName;
     private String title;

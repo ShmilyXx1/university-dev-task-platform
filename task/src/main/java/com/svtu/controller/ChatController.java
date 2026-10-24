@@ -26,12 +26,15 @@ public class ChatController {
     @Autowired
     private RedisUtil redisUtil;
 
-    /** 查询与某人的聊天历史（双向） */
+    /** 查询与某人的聊天历史（双向，msgType 可选过滤客服/私信） */
     @GetMapping("/history")
-    public Result<List<Map<String, Object>>> history(@RequestParam("peerId") int peerId) {
+    public Result<List<Map<String, Object>>> history(@RequestParam("peerId") int peerId,
+            @RequestParam(value = "msgType", required = false) String msgType) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         int me = (Integer) auth.getPrincipal();
-        List<ChatMessage> list = chatMessageMapper.selectHistory(me, peerId);
+        List<ChatMessage> list = chatMessageMapper.selectHistory(me, peerId, msgType);
+        // SQL 已按时间倒序取最近 200 条，这里反转为时间升序展示
+        Collections.reverse(list);
         List<Map<String, Object>> res = new ArrayList<>();
         for (ChatMessage m : list) {
             Map<String, Object> map = new LinkedHashMap<>();
@@ -47,9 +50,9 @@ public class ChatController {
     }
 
     /**
-     * 查询未读消息统计（按发送者分组）。
-     * 读 Redis Hash（unread:{me} → field=发送者Id → value=未读数），O(1)；
-     * Redis 丢失（重启后）则降级查 DB 并回填，保证自愈。
+     * 查询未读消息统计（按发送者 + 消息类型分组）。
+     * 以 DB 为准（含 msgType，供前端区分客服/私信并正确路由）；
+     * 同时回填 Redis Hash 供实时推送 getTotalUnread 使用，并自愈 Redis 重启丢失。
      */
     @GetMapping("/unread")
     public Result<Map<String, Object>> unread() {
@@ -57,33 +60,32 @@ public class ChatController {
         int me = (Integer) auth.getPrincipal();
         String key = "unread:" + me;
 
-        Map<String, String> cached = redisUtil.hGetAll(key);
+        List<Map<String, Object>> groups = chatMessageMapper.selectUnreadCountByFrom(me);
         int total = 0;
         List<Map<String, Object>> details = new ArrayList<>();
 
-        if (cached.isEmpty()) {
-            // 降级：Redis 无数据（冷启/重启丢失），查 DB 并回填 Redis
-            List<Map<String, Object>> groups = chatMessageMapper.selectUnreadCountByFrom(me);
+        for (Map<String, Object> row : groups) {
+            int fromUserId = ((Number) row.get("fromUserId")).intValue();
+            int cnt = ((Number) row.get("cnt")).intValue();
+            // 历史数据 msg_type 为 null 或默认 'chat' 时都按客服会话处理
+            String msgType = row.get("msgType") == null ? "service" : String.valueOf(row.get("msgType"));
+            if ("chat".equals(msgType)) msgType = "service";
+            total += cnt;
+            details.add(buildDetail(fromUserId, msgType, cnt));
+        }
+
+        // 回填 Redis（按发送者聚合总数，供实时推送使用）
+        if (groups.isEmpty()) {
+            redisUtil.delete(key);
+        } else {
+            Map<Integer, Integer> aggregated = new LinkedHashMap<>();
             for (Map<String, Object> row : groups) {
                 int fromUserId = ((Number) row.get("fromUserId")).intValue();
                 int cnt = ((Number) row.get("cnt")).intValue();
-                redisUtil.hSet(key, String.valueOf(fromUserId), String.valueOf(cnt));
-                if (cnt <= 0) continue;
-                total += cnt;
-                details.add(buildDetail(fromUserId, cnt));
+                aggregated.merge(fromUserId, cnt, Integer::sum);
             }
-        } else {
-            for (Map.Entry<String, String> e : cached.entrySet()) {
-                int cnt;
-                try {
-                    cnt = Integer.parseInt(e.getValue());
-                } catch (NumberFormatException ex) {
-                    continue;
-                }
-                if (cnt <= 0) continue; // 已读会话跳过
-                total += cnt;
-                int fromUserId = Integer.parseInt(e.getKey());
-                details.add(buildDetail(fromUserId, cnt));
+            for (Map.Entry<Integer, Integer> e : aggregated.entrySet()) {
+                redisUtil.hSet(key, String.valueOf(e.getKey()), String.valueOf(e.getValue()));
             }
         }
 
@@ -93,11 +95,12 @@ public class ChatController {
         return Result.success(result);
     }
 
-    private Map<String, Object> buildDetail(int fromUserId, int cnt) {
+    private Map<String, Object> buildDetail(int fromUserId, String msgType, int cnt) {
         User u = userMapper.selectById(fromUserId);
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("fromUserId", fromUserId);
         item.put("username", u != null ? u.getUsername() : "用户" + fromUserId);
+        item.put("msgType", msgType);
         item.put("unreadCount", cnt);
         return item;
     }

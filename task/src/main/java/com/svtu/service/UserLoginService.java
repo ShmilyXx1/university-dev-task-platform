@@ -6,4 +6,5 @@ import com.svtu.entity.User;
 public interface UserLoginService {
     Result<Object> AdminLogin(User user);
     Result<Object> UserLogin(User user);
+    void logout(Integer userId);
 }

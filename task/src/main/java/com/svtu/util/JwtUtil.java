@@ -22,13 +22,20 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    // 从配置文件读取JWT密钥（建议至少32位）
-    @Value("${jwt.secret:default-secret-key-32bit-1234567890}")
+    // 从配置文件读取JWT密钥（至少32位）。不设默认值：配置缺失时启动即失败，避免使用公开密钥
+    @Value("${jwt.secret}")
     private String secret;
 
     // 从配置文件读取令牌过期时间（毫秒）
     @Value("${jwt.expire}")
     private long expireTime;
+
+    /**
+     * 令牌有效期（秒），供 Redis 会话缓存设置相同过期时间
+     */
+    public long getExpireSeconds() {
+        return expireTime / 1000;
+    }
 
     /**
      * 生成JWT令牌（含自定义载荷）

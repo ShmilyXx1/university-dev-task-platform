@@ -5,9 +5,6 @@
       <span class="header-title">
         与 {{ peerName || ('用户 ' + peerId) }} 聊天
       </span>
-      <el-tag size="small" class="header-tag" :type="online ? 'success' : 'info'">
-        {{ online ? '在线' : '离线' }}
-      </el-tag>
     </el-header>
 
     <el-main class="chat-main">
@@ -59,9 +56,6 @@ const peerName = computed(() => route.query.peerName || '')
 const msgList = ref([])
 const sendContent = ref('')
 const msgBoxRef = ref(null)
-const online = ref(false)
-
-// 在线状态由对方发来的消息/自己发消息成功间接体现，也可以通过心跳检测更新
 
 const now = () => {
   const d = new Date()
@@ -94,7 +88,7 @@ const sendMessage = () => {
 // 拉历史
 const loadHistory = async () => {
   try {
-    const res = await getChatHistory({ peerId: peerId.value })
+    const res = await getChatHistory({ peerId: peerId.value, msgType: 'p2p' })
     msgList.value = (res.data || []).map((m) => ({
       from: m.fromUserId === userStore.userId ? 'me' : 'other',
       content: m.content,
@@ -117,14 +111,18 @@ const handlers = {
   },
   chat: (msg) => {
     // 只处理 P2P 类型的消息
-    if (msg.peerType === 'p2p') {
-      const from = msg.fromUserId === userStore.userId ? 'me' : 'other'
-      msgList.value.push({ from, content: msg.content, time: msg.time || now() })
-      scrollBottom()
-      // 如果是对方发来的 → 标记已读
-      if (msg.fromUserId !== userStore.userId && msg.fromUserId === peerId.value) {
-        markChatRead({ fromUserId: peerId.value }).catch(() => {})
-      }
+    if (msg.peerType !== 'p2p') return
+    // 只处理与当前聊天对象相关的消息：对方发给我的，或我发给对方的
+    // （后端会把发送方的消息原样回推，避免第三方私信串进本会话）
+    const isFromPeer = Number(msg.fromUserId) === peerId.value
+    const isToPeer = Number(msg.fromUserId) === userStore.userId && Number(msg.toUserId) === peerId.value
+    if (!isFromPeer && !isToPeer) return
+    const from = Number(msg.fromUserId) === userStore.userId ? 'me' : 'other'
+    msgList.value.push({ from, content: msg.content, time: msg.time || now() })
+    scrollBottom()
+    // 如果是对方发来的 → 标记已读
+    if (from === 'other') {
+      markChatRead({ fromUserId: peerId.value }).catch(() => {})
     }
   }
 }
@@ -135,6 +133,8 @@ onMounted(async () => {
     router.push('/clientMain')
     return
   }
+  // 从订单详情「联系发单人」带过来的留言，预填到输入框
+  if (route.query.content) sendContent.value = String(route.query.content)
   // 确保 WS 连接
   const token = userStore.token || localStorage.getItem('token')
   connectChat(token)
@@ -170,9 +170,6 @@ onBeforeUnmount(() => {
   margin-left: 12px;
   font-size: 18px;
   font-weight: bold;
-}
-.header-tag {
-  margin-left: 12px;
 }
 .chat-main {
   padding: 20px;

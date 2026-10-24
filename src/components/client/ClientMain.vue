@@ -9,6 +9,9 @@
         </span>
 
         <div class="header-right">
+          <el-button class="admin-entry-btn" link @click="goAdminLogin">
+            <el-icon class="btn-icon"><Setting /></el-icon>管理端
+          </el-button>
           <NotificationBell />
           <!-- 右上角头像用户名下拉菜单 -->
           <el-dropdown @command="handleDropdownCommand">
@@ -267,7 +270,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '../../stores/user'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, UserFilled, Plus, Search, RefreshLeft, Filter, Sort, Bottom, Top, ArrowRight, TrendCharts, Tickets, Money, GoldMedal, CollectionTag, ChatDotRound, EditPen } from '@element-plus/icons-vue'
+import { ArrowDown, UserFilled, Plus, Search, RefreshLeft, Filter, Sort, Bottom, Top, ArrowRight, TrendCharts, Tickets, Money, GoldMedal, CollectionTag, ChatDotRound, EditPen, Setting } from '@element-plus/icons-vue'
 import router from '../../router'
 import { selectAllOrder, searchOrder, filterOrders } from '../../api/order'
 import NotificationBell from '../../components/NotificationBell.vue'
@@ -472,6 +475,11 @@ const goAddOrder = () => {
   router.push('/clientAddOrder')
 }
 
+// 跳转管理端登录（管理员 / 审核员 / 客服）
+const goAdminLogin = () => {
+  router.push('/login')
+}
+
 const goDetail = (orderId) => {
   router.push({ path: `/clientOrderDetail/${orderId}`, query: { from: 'hall' } })
 }
@@ -538,6 +546,14 @@ onMounted(()=>{
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.admin-entry-btn {
+  color: var(--text-regular);
+  font-size: 13px;
+}
+.admin-entry-btn:hover {
+  color: var(--primary);
 }
 
 .user-header {

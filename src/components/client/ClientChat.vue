@@ -96,7 +96,11 @@ const msgList = ref([])
 const sendContent = ref('')
 const msgBoxRef = ref(null)
 
-const goBack = () => router.push('/clientMain')
+const goBack = () => {
+  // 有历史记录则返回来源页（客服端从铃铛进入时能回到客服工作台），否则回客户端首页
+  if (window.history.length > 1) router.back()
+  else router.push('/clientMain')
+}
 
 const now = () => {
   const d = new Date()
@@ -156,13 +160,16 @@ const sendMessage = () => {
 // 拉取历史消息
 const loadHistory = async (pid) => {
   try {
-    const res = await getChatHistory({ peerId: pid })
+    const res = await getChatHistory({ peerId: pid, msgType: 'service' })
     msgList.value = (res.data || []).map((m) => ({
       from: m.fromUserId === userStore.userId ? 'user' : 'service',
       content: m.content,
       time: m.sendDatetime ? m.sendDatetime.replace('T', ' ').substring(0, 16) : ''
     }))
     scrollBottom()
+    // 进入会话即把客服发来的消息标记已读，避免未读数持续累积
+    markChatRead({ fromUserId: pid }).catch(() => {})
+    chatStore.markPeerRead(pid)
   } catch (e) {
     // 历史拉取失败不阻塞
   }
@@ -203,8 +210,15 @@ const handlers = {
   },
   chat: (msg) => {
     if (status.value !== 'chatting') return
+    // P2P 私信不属于客服会话，忽略，避免混进客服聊天记录
+    if (msg.peerType === 'p2p') return
     msgList.value.push({ from: msg.from, content: msg.content, time: msg.time || now() })
     scrollBottom()
+    // 客服发来的消息实时标记已读
+    if (msg.from === 'service' && peerId.value) {
+      markChatRead({ fromUserId: peerId.value }).catch(() => {})
+      chatStore.markPeerRead(peerId.value)
+    }
   },
   service_leave: async (msg) => {
     ElMessage.info(msg.content || '客服已结束会话')

@@ -30,6 +30,7 @@
 
       <div class="link-row">
         <router-link to="/getCode" class="forget-link">忘记密码？</router-link>
+        <router-link to="/clientLogin" class="forget-link">返回客户端登录</router-link>
       </div>
     </el-card>
   </div>
@@ -166,7 +167,9 @@ const login = async () => {
 }
 
 .link-row {
-  text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 .forget-link {
   color: var(--primary);

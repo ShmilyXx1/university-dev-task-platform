@@ -99,6 +99,9 @@ export const useUserStore = defineStore('user', {
     },
 
     logout() {
+      const token = this.token
+      // 必须在清空 token 前判断：isTokenExpired 依赖 state.token，清空后会恒为 true
+      const needNotifyServer = !!token && !this.isTokenExpired
       this.token = ''
       this.isLogin = false
       this.role = ''
@@ -110,6 +113,13 @@ export const useUserStore = defineStore('user', {
       localStorage.removeItem('username')
       localStorage.removeItem('userId')
       localStorage.removeItem('imagePath')
+      // 通知服务端删除 Redis 会话缓存，使旧令牌立即失效
+      // （令牌已过期/为空时不请求，避免再触发一次"登录已过期"提示）
+      if (needNotifyServer) {
+        import('../api/user')
+          .then(({ logoutApi }) => logoutApi(token))
+          .catch(() => {})
+      }
       // 关闭聊天 WebSocket
       import('../utils/ws').then(({ closeChat }) => {
         closeChat()

@@ -9,7 +9,7 @@ import ServiceLayout from '../layout/ServiceLayout.vue'
 const routes = [
   {
     path: '/',
-    redirect: '/login'
+    redirect: '/clientLogin'
   },
   {
     path: '/login',

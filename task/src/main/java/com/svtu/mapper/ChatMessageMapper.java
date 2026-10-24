@@ -11,8 +11,8 @@ import java.util.Map;
 @Mapper
 public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
 
-    /** 查询两人之间的聊天历史（双向），SQL见 ChatMessageMapper.xml */
-    List<ChatMessage> selectHistory(@Param("me") int me, @Param("peer") int peer);
+    /** 查询两人之间的聊天历史（双向，msgType 可选过滤客服/私信），SQL见 ChatMessageMapper.xml */
+    List<ChatMessage> selectHistory(@Param("me") int me, @Param("peer") int peer, @Param("msgType") String msgType);
 
     /** 查询某用户的未读消息（按发送者分组统计） */
     List<Map<String, Object>> selectUnreadCountByFrom(@Param("userId") int userId);

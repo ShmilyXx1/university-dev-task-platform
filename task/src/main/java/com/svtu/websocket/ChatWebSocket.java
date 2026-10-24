@@ -301,14 +301,14 @@ public class ChatWebSocket {
         if (isService) {
             Integer uid = serviceBindUser.get(userId);
             if (uid == null) return;
-            saveMessage(userId, uid, content);
+            saveMessage(userId, uid, content, "service");
             MsgDTO dto = new MsgDTO("chat", content.trim(), "service");
             dto.setTime(time);
             sendMsg(allSessionMap.get(uid), dto);
         } else {
             Integer sid = userBindService.get(userId);
             if (sid == null) return;
-            saveMessage(userId, sid, content);
+            saveMessage(userId, sid, content, "service");
             MsgDTO dto = new MsgDTO("chat", content.trim(), "user");
             dto.setTime(time);
             sendMsg(allSessionMap.get(sid), dto);
@@ -323,9 +323,10 @@ public class ChatWebSocket {
         if (content == null || content.trim().isEmpty()) return;
         if (toUserId <= 0 || toUserId == this.userId) return;
         String time = SDF.format(new Date());
+        log.info("P2P 私信：fromUserId={}, toUserId={}, content={}", this.userId, toUserId, content.trim());
 
         // 1. 落库
-        saveMessage(this.userId, toUserId, content.trim());
+        saveMessage(this.userId, toUserId, content.trim(), "p2p");
 
         // 2. 构造推送 DTO（推给双方的消息体一致，fromUserId/toUserId 固定）
         MsgDTO dto = new MsgDTO("chat", content.trim());
@@ -467,12 +468,13 @@ public class ChatWebSocket {
     /**
      * 聊天消息落库
      */
-    private static void saveMessage(int fromUserId, int toUserId, String content) {
+    private static void saveMessage(int fromUserId, int toUserId, String content, String msgType) {
         try {
             ChatMessage msg = new ChatMessage();
             msg.setFromUserId(fromUserId);
             msg.setToUserId(toUserId);
             msg.setContent(content);
+            msg.setMsgType(msgType);  // service=客服会话 / p2p=用户间私信
             msg.setIsRead(0);  // 初始未读（接收方标已读后会 update）
             msg.setSendDatetime(new Date());
             chatMessageMapper.insert(msg);
@@ -536,7 +538,8 @@ public class ChatWebSocket {
     @OnClose
     public void onClose() {
         if (userId == 0) return;
-        allSessionMap.remove(userId);
+        // 仅当 map 里存的还是当前连接时才移除，避免旧连接 onClose 在新连接 onOpen 之后执行时误删新会话（重连竞态）
+        allSessionMap.remove(userId, this.session);
         log.info("WebSocket 断开：userId={}, isService={}", userId, isService);
 
         if (isService) {

@@ -55,8 +55,9 @@ export function connectChat(token) {
  */
 export function initChatWs(token) {
   if (!token) return
+  connectChat(token)          // 始终确保连接建立（幂等，已打开则复用）
+  if (globalInitDone) return  // 全局监听只注册一次，避免重复弹提示
   globalInitDone = true
-  connectChat(token)
   // 全局监听：未读数变化 → 更新 store
   onChat('notify_unread', (msg) => {
     try {

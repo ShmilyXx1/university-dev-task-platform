@@ -35,13 +35,16 @@ export const useChatStore = defineStore('chat', {
       this.totalUnread = 0
       this.details = []
     },
-    /** 某条会话已读后减少计数 */
+    /** 某条会话已读后减少计数（同一发送者可能有客服/私信多条记录，全部清零） */
     markPeerRead(fromUserId) {
-      const item = this.details.find((d) => d.fromUserId === fromUserId)
-      if (item) {
-        this.totalUnread = Math.max(0, this.totalUnread - item.unreadCount)
-        item.unreadCount = 0
-      }
+      let cleared = 0
+      this.details.forEach((d) => {
+        if (d.fromUserId === fromUserId && d.unreadCount > 0) {
+          cleared += d.unreadCount
+          d.unreadCount = 0
+        }
+      })
+      this.totalUnread = Math.max(0, this.totalUnread - cleared)
     }
   }
 })
